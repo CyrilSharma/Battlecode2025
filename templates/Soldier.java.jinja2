@@ -6,6 +6,7 @@ import battlecode.common.*;
 public class Soldier {
     public static RobotController rc;
     public static MapLocation home = null;
+    public static MapLocation buildTower = null;
     public static MapLocation myloc;
     public static int paintCapacity = UnitType.SOLDIER.paintCapacity;
     public static int myPaint;
@@ -14,8 +15,7 @@ public class Soldier {
         Soldier.rc = rc;
     }
 
-    public static void run() throws GameActionException {
-        // We do this every turn in the event the tower got destroyed when the unit was created.
+    public static void setHome() throws GameActionException {
         if (home == null) {
             RobotInfo[] robots = rc.senseNearbyRobots();
             for (int i = robots.length; --i >= 0; ) {
@@ -30,27 +30,120 @@ public class Soldier {
                 }
             }
         }
+    }
+
+    public static void refuel() throws GameActionException {
+        rc.setIndicatorString("Refueling");
+        Pathing.pathTo(home);
+        int amt = paintCapacity - myPaint;
+        if (rc.canTransferPaint(home, amt)) {
+            rc.transferPaint(home, amt);
+        }
+    }
+
+    public static boolean seeRuin() throws GameActionException {
+        MapInfo[] near = rc.senseNearbyMapInfos();
+        for (int i = near.length; --i >= 0; ) {
+            if (near[i].hasRuin()) {
+                RobotInfo r = rc.senseRobotAtLocation(near[i].getMapLocation());
+                if (r == null) {
+                    if (buildTower == null) {
+                        buildTower = near[i].getMapLocation();
+                    }
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    public static void makeTower() throws GameActionException {
+        assert(buildTower != null);
+
+        // choose random tower type to mark/build
+        UnitType t = UnitType.LEVEL_ONE_PAINT_TOWER;
+        MapLocation check = buildTower.add(Direction.NORTH);
+        if (rc.canSenseLocation(check) && rc.senseMapInfo(check).getMark() == PaintType.EMPTY && rc.canMarkTowerPattern(t, buildTower)){
+            rc.markTowerPattern(t, buildTower);
+        }
+
+        MapLocation goal = null;
+        boolean secondCol = false;
+        int bestDist = 1000000000;
+
+        for (int i = 3; --i >= -2; ){
+            for (int j = 3; --j >= -2; ){
+                MapLocation tmp = new MapLocation(rc.getLocation().x + i, rc.getLocation().y + j);
+                if (rc.canSenseLocation(tmp)) {
+                    MapInfo mi = rc.senseMapInfo(tmp);
+                    if (mi.getMark() != mi.getPaint() && mi.getMark() != PaintType.EMPTY) {
+                        int d = rc.getLocation().distanceSquaredTo(tmp);
+                        if (d < bestDist) {
+                            bestDist = d;
+                            goal = tmp;
+                            secondCol = mi.getMark() == PaintType.ALLY_SECONDARY;
+                        }
+                    }
+                }
+            }
+        }
+        if (goal != null) {
+            if (rc.canAttack(goal)) {
+                rc.attack(goal, secondCol);
+            }
+            else {
+                Pathing.pathTo(goal);
+            }
+        }
+        else {
+            if (rc.canCompleteTowerPattern(t, buildTower)){
+                rc.completeTowerPattern(t, buildTower);
+            }
+            Pathing.pathTo(buildTower);
+        }
+    }
+
+    public static boolean isBuilt(MapLocation ruinLoc) throws GameActionException {
+        if (rc.canSenseLocation(ruinLoc)) {
+            RobotInfo r = rc.senseRobotAtLocation(ruinLoc);
+            return (r != null);
+        }
+        return false;
+    }
+
+    public static void explore() throws GameActionException {
+        if (exploreTarget == null || rc.getLocation().distanceSquaredTo(exploreTarget) <= 5) {
+            exploreTarget = new MapLocation(
+                Globals.rng.nextInt(rc.getMapWidth()),
+                Globals.rng.nextInt(rc.getMapHeight())
+            );
+        }
+        rc.setIndicatorString("Exploring to " + exploreTarget.x + " " + exploreTarget.y);
+        Pathing.pathTo(exploreTarget);
+    }
+
+    public static void run() throws GameActionException {
+        // We do this every turn in the event the tower got destroyed when the unit was created.
+        setHome();
+
+        if (buildTower != null && isBuilt(buildTower)) {
+            buildTower = null;
+            return;
+        }
+
         myloc = rc.getLocation();
         myPaint = rc.getPaint();
 
         if (myPaint <= (paintCapacity >> 1) && home != null) {
-            rc.setIndicatorString("Refueling");
-            Pathing.pathTo(home);
-            int amt = paintCapacity - myPaint;
-            if (rc.canTransferPaint(home, amt)) {
-                rc.transferPaint(home, amt);
-            }
-        } else if (home != null) {
-            if (exploreTarget == null || rc.getLocation().distanceSquaredTo(exploreTarget) <= 5) {
-                exploreTarget = new MapLocation(
-                    Globals.rng.nextInt(rc.getMapWidth()),
-                    Globals.rng.nextInt(rc.getMapHeight())
-                );
-            }
-            rc.setIndicatorString("Exploring to " + exploreTarget.x + " " + exploreTarget.y);
-            Pathing.pathTo(exploreTarget);
+            refuel();
         }
-
+        else if (seeRuin() || buildTower != null) {
+            makeTower();
+        }
+        else {
+            explore();
+        }
+        
 
         // Lay paint where I am first.
         MapInfo currentTile = rc.senseMapInfo(myloc);
