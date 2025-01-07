@@ -1,17 +1,35 @@
 package current;
 import battlecode.common.*;
 
-/**
- * RobotPlayer is the class that describes your main robot strategy.
- * The run() method inside this class is like your main function: this is what we'll call once your robot
- * is created!
- */
+
+
+
 public class RobotPlayer {
     @SuppressWarnings("unused")
     public static void run(RobotController rc) throws GameActionException {
-        int hello = 1;
-        int lol = 2;
-        int hehe = 3;
-        {% debug('hello', 'lol', 'hehe') %}
+        {%- macro generate_main_loop(classname) -%}
+                while (true) {
+                    try {
+                        {{ classname }}.run();
+                    } catch (GameActionException e) {
+                        System.out.println("Exception = ");
+                        e.printStackTrace();
+                    } finally {
+                        Clock.yield();
+                    }
+                }
+        {%- endmacro %}
+        switch (rc.getType()) {
+            case SOLDIER: {
+                {{ generate_main_loop('Soldier') }}
+            }
+            case MOPPER: {
+                {{ generate_main_loop('Mopper') }}
+            }
+            case SPLASHER: {
+                {{ generate_main_loop('Splasher') }}
+            }
+            default: break;
+        }
     }
 }

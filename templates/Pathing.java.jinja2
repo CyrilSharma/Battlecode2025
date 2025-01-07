@@ -1,0 +1,14 @@
+package current;
+import battlecode.common.*;
+
+public class Pathing {
+    public static RobotController rc;
+    public static void init(RobotController rc) {
+        Pathing.rc = rc;
+    }
+
+    public static void pathTo(MapLocation target) throws GameActionException {
+        Direction dir = rc.getLocation().directionTo(target);
+        if (rc.canMove(dir)) rc.move(dir);
+    }
+}
