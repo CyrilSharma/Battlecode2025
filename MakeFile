@@ -1,0 +1,30 @@
+TEMPLATE_DIR := templates
+OUTPUT_DIR := java/src/current
+
+# Python script for processing
+PYTHON_SCRIPT := generate_java.py
+
+# Find all .java.jinja2 files in the template directory
+TEMPLATES := $(wildcard $(TEMPLATE_DIR)/*.java.jinja2)
+
+# Define corresponding output .java files in the output directory
+OUTPUTS := $(patsubst $(TEMPLATE_DIR)/%.java.jinja2, $(OUTPUT_DIR)/%.java, $(TEMPLATES))
+
+# Default mode (debug)
+MODE := false
+
+# Default target
+all: $(OUTPUTS)
+
+# Prod target
+prod: MODE := true
+prod: $(OUTPUTS)
+
+# Rule to generate .java files
+$(OUTPUT_DIR)/%.java: $(TEMPLATE_DIR)/%.java.jinja2
+	mkdir -p $(OUTPUT_DIR)
+	python $(PYTHON_SCRIPT) $< $@ --prod $(MODE)
+	chmod 444 $@
+
+clean:
+	rm -rf $(OUTPUT_DIR)
