@@ -1,24 +1,67 @@
+{% import 'helpers/Utils.java.jinja2' as utils %}
+
 package current;
 import battlecode.common.*;
 
 public class Soldier {
     public static RobotController rc;
+    public static MapLocation home = null;
+    public static MapLocation myloc;
     public static void init(RobotController rc) {
         Soldier.rc = rc;
     }
 
     public static void run() throws GameActionException {
-        Direction dir = {{ directions[0] }};
-        MapLocation nextLoc = rc.getLocation().add(dir);
-        if (rc.canMove(dir)){
-            rc.move(dir);
+        // We do this every turn in the event the tower got destroyed when the unit was created.
+        if (home == null) {
+            RobotInfo[] robots = rc.senseNearbyRobots();
+            for (int i = robots.length; --i >= 0; ) {
+                RobotInfo robot = robots[i];
+                switch (robot.type) {
+                    case SOLDIER: continue;
+                    case MOPPER: continue;
+                    case SPLASHER: continue;
+                    default:
+                        home = robot.location;
+                        break;
+                }
+            }
         }
-        if (rc.canMopSwing(dir)){
-            rc.mopSwing(dir);
-            System.out.println("Mop Swing! Booyah!");
+
+        myloc = rc.getLocation();
+
+
+        // Lay paint where I am first.
+        MapInfo currentTile = rc.senseMapInfo(myloc);
+        if (!currentTile.getPaint().isAlly() && rc.canAttack(myloc)){
+            rc.attack(myloc);
         }
-        else if (rc.canAttack(nextLoc)){
-            rc.attack(nextLoc);
+
+        // Paint around me.
+        MapLocation nextLoc;
+        MapInfo nextLocInfo;
+        RobotInfo unitInfo;
+        loop: {
+        {%- for direction in directions %}
+            nextLoc = myloc.add({{ direction }});
+            nextLocInfo = rc.senseMapInfo(nextLoc);
+            unitInfo = rc.senseRobotAtLocation(nextLoc);
+            // Horrible series of checks because wall is for some reason considered paintable,
+            // And so are the starting towers...
+            if (rc.canAttack(nextLoc) && !nextLocInfo.getPaint().isAlly() && !nextLocInfo.isWall()) {
+                if (unitInfo == null) {
+                    rc.attack(nextLoc);
+                    break loop;
+                } else {
+                    boolean isTower;
+                    {{ utils.isTower(type='unitInfo.type', isTower='isTower') | indent(20) }}
+                    if (!isTower) {
+                        rc.attack(nextLoc);
+                        break loop;
+                    }
+                }
+            }
+        {% endfor -%}
         }
     }
 }

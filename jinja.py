@@ -53,7 +53,7 @@ def main():
             'Direction.SOUTHEAST',
             'Direction.SOUTH',
             'Direction.SOUTHWEST',
-            'Direction.WEST'
+            'Direction.WEST',
             'Direction.NORTHWEST',
             'Direction.CENTER'
         ]

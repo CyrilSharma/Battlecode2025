@@ -1,0 +1,17 @@
+{% macro compress(x, y) -%}
+(({{ x }} << 8) | {{ y }})
+{%- endmacro -%}
+
+{%- macro decompress(code, x, y) %}
+{{ x }} = (code >> 8);
+{{ y }} = (code & 0xFF);
+{%- endmacro -%}
+
+{%- macro isTower(type, isTower) %}
+switch ({{ type }}) {
+    case SOLDIER -> {{ isTower }} = false;
+    case MOPPER -> {{ isTower }} = false;
+    case SPLASHER -> {{ isTower }} = false;
+    default -> {{ isTower }} = true;
+}
+{%- endmacro -%}

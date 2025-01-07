@@ -1,4 +1,5 @@
 TEMPLATE_DIR := templates
+HELPERS_DIR := helpers
 OUTPUT_DIR := java/src/current
 
 # Python script for processing
@@ -9,6 +10,11 @@ TEMPLATES := $(wildcard $(TEMPLATE_DIR)/*.java.jinja2)
 
 # Define corresponding output .java files in the output directory
 OUTPUTS := $(patsubst $(TEMPLATE_DIR)/%.java.jinja2, $(OUTPUT_DIR)/%.java, $(TEMPLATES))
+
+HELPER_FILES := $(wildcard $(HELPERS_DIR)/*)
+
+# DEPS includes the Python script and all helper files
+DEPS := $(PYTHON_SCRIPT) $(HELPER_FILES)
 
 # Default mode (debug)
 MODE := false
@@ -21,7 +27,7 @@ prod: MODE := true
 prod: $(OUTPUTS)
 
 # Rule to generate .java files
-$(OUTPUT_DIR)/%.java: $(TEMPLATE_DIR)/%.java.jinja2 $(PYTHON_SCRIPT)
+$(OUTPUT_DIR)/%.java: $(TEMPLATE_DIR)/%.java.jinja2 $(DEPS)
 	mkdir -p $(OUTPUT_DIR)
 	rm -f $@
 	python3 $(PYTHON_SCRIPT) --input $< --output $@ --mode $(MODE)
