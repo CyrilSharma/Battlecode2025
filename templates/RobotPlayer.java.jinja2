@@ -19,6 +19,7 @@ public class RobotPlayer {
                     }
                 }
         {%- endmacro %}
+        Globals.init(rc);
         switch (rc.getType()) {
             case SOLDIER: {
                 {{ generate_main_loop('Soldier') }}
@@ -29,7 +30,9 @@ public class RobotPlayer {
             case SPLASHER: {
                 {{ generate_main_loop('Splasher') }}
             }
-            default: break;
+            default: {
+                {{ generate_main_loop('Tower') }}
+            }
         }
     }
 }
