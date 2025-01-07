@@ -33,23 +33,21 @@ public class Soldier {
         myloc = rc.getLocation();
         myPaint = rc.getPaint();
 
-        // If low on paint, go home and get some.
         if (myPaint <= (paintCapacity >> 1) && home != null) {
+            rc.setIndicatorString("Refueling");
             Pathing.pathTo(home);
             int amt = paintCapacity - myPaint;
             if (rc.canTransferPaint(home, amt)) {
                 rc.transferPaint(home, amt);
             }
-        }
-
-        if (exploreTarget == null && home != null) {
-            exploreTarget = new MapLocation(
-                Globals.rng.nextInt(rc.getMapWidth()),
-                Globals.rng.nextInt(rc.getMapHeight())
-            );
-        }
-
-        if (exploreTarget != null) {
+        } else if (home != null) {
+            if (exploreTarget == null) {
+                exploreTarget = new MapLocation(
+                    Globals.rng.nextInt(rc.getMapWidth()),
+                    Globals.rng.nextInt(rc.getMapHeight())
+                );
+            }
+            rc.setIndicatorString("Exploring to " + exploreTarget.x + " " + exploreTarget.y);
             Pathing.pathTo(exploreTarget);
         }
 
@@ -61,30 +59,18 @@ public class Soldier {
         }
 
         // Paint around me.
-        MapLocation nextLoc;
+        {# MapLocation nextLoc;
         MapInfo nextLocInfo;
         RobotInfo unitInfo;
         loop: {
         {%- for direction in directions %}
             nextLoc = myloc.add({{ direction }});
             nextLocInfo = rc.senseMapInfo(nextLoc);
-            unitInfo = rc.senseRobotAtLocation(nextLoc);
-            // Horrible series of checks because wall is for some reason considered paintable,
-            // And so are the starting towers...
-            if (rc.canAttack(nextLoc) && !nextLocInfo.getPaint().isAlly() && !nextLocInfo.isWall()) {
-                if (unitInfo == null) {
-                    rc.attack(nextLoc);
-                    break loop;
-                } else {
-                    boolean isTower;
-                    {{ utils.isTower(type='unitInfo.type', isTower='isTower') | indent(20) }}
-                    if (!isTower) {
-                        rc.attack(nextLoc);
-                        break loop;
-                    }
-                }
+            if (rc.canAttack(nextLoc) && !nextLocInfo.getPaint().isAlly()) {
+                rc.attack(nextLoc);
+                break loop;
             }
         {% endfor -%}
-        }
+        } #}
     }
 }
