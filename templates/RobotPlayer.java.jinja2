@@ -7,6 +7,12 @@ import battlecode.common.*;
 public class RobotPlayer {
     @SuppressWarnings("unused")
     public static void run(RobotController rc) throws GameActionException {
+        Globals.init(rc);
+        Mopper.init(rc);
+        Pathing.init(rc);
+        Soldier.init(rc);
+        Splasher.init(rc);
+        Tower.init(rc);
         {%- macro generate_main_loop(classname) -%}
                 while (true) {
                     try {
@@ -19,7 +25,6 @@ public class RobotPlayer {
                     }
                 }
         {%- endmacro %}
-        Globals.init(rc);
         switch (rc.getType()) {
             case SOLDIER: {
                 {{ generate_main_loop('Soldier') }}
