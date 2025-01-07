@@ -41,7 +41,7 @@ public class Soldier {
                 rc.transferPaint(home, amt);
             }
         } else if (home != null) {
-            if (exploreTarget == null) {
+            if (exploreTarget == null || rc.getLocation().distanceSquaredTo(exploreTarget) <= 5) {
                 exploreTarget = new MapLocation(
                     Globals.rng.nextInt(rc.getMapWidth()),
                     Globals.rng.nextInt(rc.getMapHeight())
