@@ -33,13 +33,22 @@ class DebugExtension(Extension):
         return f'System.out.println("[{lineno}] " + {message});'
 
 
-# Set up the Jinja2 environment
-env = Environment(loader=FileSystemLoader("templates"))
-env.add_extension(DebugExtension)
+def main():
+    parser = argparse.ArgumentParser(description="Generate a .java file from a .java.jinja2 template.")
+    parser.add_argument("--input", required=True, help="Path to the input .java.jinja2 template file.")
+    parser.add_argument("--output", required=True, help="Path to the output .java file.")
+    parser.add_argument("--mode", required=True, help="Mode of generation (e.g., 'true' for production, 'false' for debug).")
+    args = parser.parse_args()
 
-# Load and render the template
-template = env.get_template("example.jinja")
-rendered_output = template.render()
+    print(args.input)
+    print(args.output)
+    env = Environment(loader=FileSystemLoader(searchpath='./'))
+    env.add_extension(DebugExtension)
+    template = env.get_template(args.input)
+    rendered_content = template.render()
+    with open(args.output, 'w') as output_file:
+        output_file.write(rendered_content)
 
-print("Rendered Output:")
-print(rendered_output)
+if __name__ == "__main__":
+    main()
+    
