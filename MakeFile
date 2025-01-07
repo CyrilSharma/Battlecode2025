@@ -21,7 +21,7 @@ prod: MODE := true
 prod: $(OUTPUTS)
 
 # Rule to generate .java files
-$(OUTPUT_DIR)/%.java: $(TEMPLATE_DIR)/%.java.jinja2
+$(OUTPUT_DIR)/%.java: $(TEMPLATE_DIR)/%.java.jinja2 $(PYTHON_SCRIPT)
 	mkdir -p $(OUTPUT_DIR)
 	rm -f $@
 	python3 $(PYTHON_SCRIPT) --input $< --output $@ --mode $(MODE)

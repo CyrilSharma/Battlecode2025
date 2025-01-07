@@ -7,5 +7,18 @@ public class Soldier {
         Soldier.rc = rc;
     }
 
-    public static void run() {}
+    public static void run() throws GameActionException {
+        Direction dir = {{ directions[0] }};
+        MapLocation nextLoc = rc.getLocation().add(dir);
+        if (rc.canMove(dir)){
+            rc.move(dir);
+        }
+        if (rc.canMopSwing(dir)){
+            rc.mopSwing(dir);
+            System.out.println("Mop Swing! Booyah!");
+        }
+        else if (rc.canAttack(nextLoc)){
+            rc.attack(nextLoc);
+        }
+    }
 }

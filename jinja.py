@@ -45,7 +45,19 @@ def main():
     env = Environment(loader=FileSystemLoader(searchpath='./'))
     env.add_extension(DebugExtension)
     template = env.get_template(args.input)
-    rendered_content = template.render()
+    rendered_content = template.render(
+        directions=[
+            'Direction.NORTH',
+            'Direction.NORTHEAST',
+            'Direction.EAST',
+            'Direction.SOUTHEAST',
+            'Direction.SOUTH',
+            'Direction.SOUTHWEST',
+            'Direction.WEST'
+            'Direction.NORTHWEST',
+            'Direction.CENTER'
+        ]
+    )
     with open(args.output, 'w') as output_file:
         output_file.write(rendered_content)
 
