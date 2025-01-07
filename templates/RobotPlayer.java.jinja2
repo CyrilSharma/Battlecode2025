@@ -1,9 +1,5 @@
 package current;
 import battlecode.common.*;
-
-
-
-
 public class RobotPlayer {
     @SuppressWarnings("unused")
     public static void run(RobotController rc) throws GameActionException {
@@ -26,15 +22,11 @@ public class RobotPlayer {
                 }
         {%- endmacro %}
         switch (rc.getType()) {
-            case SOLDIER: {
-                {{ generate_main_loop('Soldier') }}
+            {% for name in ['Soldier', 'Mopper', 'Splasher'] -%}
+            case {{ name | upper }}: {
+                {{ generate_main_loop(name) }}
             }
-            case MOPPER: {
-                {{ generate_main_loop('Mopper') }}
-            }
-            case SPLASHER: {
-                {{ generate_main_loop('Splasher') }}
-            }
+            {% endfor %}
             default: {
                 {{ generate_main_loop('Tower') }}
             }
