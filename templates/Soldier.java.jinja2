@@ -7,6 +7,9 @@ public class Soldier {
     public static RobotController rc;
     public static MapLocation home = null;
     public static MapLocation myloc;
+    public static int paintCapacity = UnitType.SOLDIER.paintCapacity;
+    public static int myPaint;
+    public static MapLocation exploreTarget;
     public static void init(RobotController rc) {
         Soldier.rc = rc;
     }
@@ -27,8 +30,28 @@ public class Soldier {
                 }
             }
         }
-
         myloc = rc.getLocation();
+        myPaint = rc.getPaint();
+
+        // If low on paint, go home and get some.
+        if (myPaint <= (paintCapacity >> 1) && home != null) {
+            Pathing.pathTo(home);
+            int amt = paintCapacity - myPaint;
+            if (rc.canTransferPaint(home, amt)) {
+                rc.transferPaint(home, amt);
+            }
+        }
+
+        if (exploreTarget == null && home != null) {
+            exploreTarget = new MapLocation(
+                Globals.rng.nextInt(rc.getMapWidth()),
+                Globals.rng.nextInt(rc.getMapHeight())
+            );
+        }
+
+        if (exploreTarget != null) {
+            Pathing.pathTo(exploreTarget);
+        }
 
 
         // Lay paint where I am first.
