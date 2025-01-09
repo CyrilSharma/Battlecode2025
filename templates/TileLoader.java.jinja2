@@ -1,0 +1,159 @@
+package current;
+import battlecode.common.*;
+
+public class TileLoader {
+    public static RobotController rc;
+    public static void init(RobotController rc) {
+        TileLoader.rc = rc;
+    }
+
+    {%- set VISION_WIDTH = 9 -%}
+    {%- set CORNER_OFFSET = intDiv(VISION_WIDTH, 2) -%}
+    {%- set bitFmt = '{:09b}' %}
+
+    {% for i in range(60) -%}
+    public static long wall{{ i }} = 0;
+    public static long wall_reversed{{ i }} = 0;
+    public static long seen{{ i }} = 0;
+    public static long seen_reversed{{ i }} = 0;
+    {% endfor -%}
+
+    public static int offset;
+    public static MapInfo[] mapInfos;
+    public static int shiftReversedX;
+
+    {% for i in range(VISION_WIDTH) -%}
+    public static int local_seen{{ i }} = 0;
+    public static int local_seen_reversed{{ i }} = 0;
+    public static int local_wall{{ i }} = 0;
+    public static int local_wall_reversed{{ i }} = 0;
+    {% endfor %}
+
+
+    public static void load() throws GameActionException {
+        System.out.println("I'm loading!");
+        // We measure from the top right corner since that will always 
+        // Have non-negative coordinates, meaning this hashCode magic will make sense.
+        offset = rc.getLocation().translate({{CORNER_OFFSET}}, {{CORNER_OFFSET}}).hashCode();
+        mapInfos = rc.senseNearbyMapInfos();
+
+        {% for i in range(VISION_WIDTH) -%}
+        local_seen{{ i }} = 0;
+        local_seen_reversed{{ i }} = 0;
+        local_wall{{ i }} = 0;
+        local_wall_reversed{{ i }} = 0;
+        {% endfor %}
+
+        for (int i = mapInfos.length; --i >= 0; ) {
+            // https://github.com/battlecode/battlecode24/blob/master/engine/src/main/battlecode/common/MapLocation.java
+            MapInfo mapInfo = mapInfos[i];
+            switch (offset - mapInfo.getMapLocation().hashCode()) {
+                {% for rx in range(VISION_WIDTH) -%}
+                {% for ry in range(VISION_WIDTH) -%}
+                {%- set x = VISION_WIDTH - 1 - rx -%}
+                {%- set y = VISION_WIDTH - 1 - ry -%}
+                case 0x{{ '{:08X}'.format(bitOr(ry, bitLeftShift(rx, 16))) }} -> {
+                    local_seen{{ y }}          += 0b{{ bitFmt.format(bitLeftShift(1, x)) }};
+                    local_seen_reversed{{ y }} += 0b{{ bitFmt.format(bitLeftShift(1, rx)) }};
+                }
+                {% endfor -%}
+                {%- endfor -%}
+                default -> System.out.println("Unknown MapLocation Offset");
+            }
+
+            if (mapInfo.isWall()) {
+                switch (offset - mapInfo.getMapLocation().hashCode()) {
+                    {% for rx in range(VISION_WIDTH) -%}
+                    {% for ry in range(VISION_WIDTH) -%}
+                    {%- set x = VISION_WIDTH - 1 - rx -%}
+                    {%- set y = VISION_WIDTH - 1 - ry -%}
+                    case 0x{{ '{:08X}'.format(bitOr(ry, bitLeftShift(rx, 16))) }} -> {
+                        local_wall{{ y }}          += 0b{{ bitFmt.format(bitLeftShift(1, x)) }};
+                        local_wall_reversed{{ y }} += 0b{{ bitFmt.format(bitLeftShift(1, rx)) }};
+                    }
+                    {% endfor -%}
+                    {%- endfor -%}
+                    default -> System.out.println("Unknown MapLocation Offset");
+                }
+            }
+        }
+
+        
+
+        shiftReversedX = ((rc.getMapWidth() - 1) - (rc.getLocation().x + {{ CORNER_OFFSET }}));
+        if (shiftReversedX > 0) {
+            dumpPositive();
+        } else {
+            dumpNegative();
+        }
+    }
+
+    {% macro dump(type) %}
+    public static void dump{{ type }}() throws GameActionException {
+        int cornerY = rc.getLocation().y + {{CORNER_OFFSET}};
+        int shiftX = rc.getLocation().x + {{CORNER_OFFSET - (VISION_WIDTH - 1)}};
+        {% if type != 'Positive' -%}
+        int trueReversedShiftX = -shiftReversedX;
+        {%- set shift = '>>> trueReversedShiftX' -%}
+        {%- else -%}
+        {%- set shift = '<< shiftReversedX' -%}
+        {%- endif %}
+
+        switch (cornerY) {
+            {% for y in range(CORNER_OFFSET, 60 + CORNER_OFFSET) -%}
+            case {{ y }} -> {
+                {% for offset in range(0, VISION_WIDTH) -%}
+                {%- set globalY = y - offset -%}
+                {%- set localY = VISION_WIDTH - 1 - offset -%}
+                {%- if (globalY >= 0 and globalY < 60) -%}
+                seen{{globalY}} |= (long)(local_seen{{localY}}) << shiftX;
+                seen_reversed{{globalY}} |= (long)(local_seen_reversed{{localY}}) {{ shift }};
+                wall{{globalY}} |= (long)(local_wall{{localY}}) << shiftX;
+                wall_reversed{{globalY}} |= (long)(local_wall_reversed{{localY}}) {{ shift }};
+                {% endif -%}
+                {%- endfor %}
+            }
+            {% endfor -%}
+            default -> System.out.println("Top Right Corner Out of Bounds.");
+        }
+    }
+    {% endmacro %}
+
+    {{ dump(type='Positive') }}
+    {{ dump(type='Negative') }}
+    
+    {# This is faster, but massive. #}
+    {% if not prod %}
+    {% set LIMIT = 6 %}
+    public static void display() throws GameActionException {
+        System.out.println("I'm displaying!");
+        rc.setIndicatorDot(new MapLocation(0, 0), 0, 0, 0);
+        {% for i in range(LIMIT) %}
+        display{{i}}();
+        {% endfor %}
+    }
+
+    {% macro display(index, limit) %}
+    public static void display{{index}}() throws GameActionException {
+        {% set mask = 'wall_reversed' %}
+        {% for y in range(intDiv(60, limit) * index, intDiv(60, limit) * (index + 1)) -%}
+        if ({{mask}}{{ y }} != 0) {
+            switch (rc.getMapWidth()) {
+                {% for x in range(60, -1, -1) %}
+                case {{ x }}: {
+                    if (({{mask}}{{ y }} & 0x{{ '{:08X}'.format(bitLeftShift(1, x)) }}L) != 0) {
+                        rc.setIndicatorDot(new MapLocation({{ x }}, {{ y }}), 0, 0, 0);
+                    }
+                }
+                {%- endfor %}
+            }
+        }
+        {%- endfor %}
+    }
+    {% endmacro %}
+
+    {% for i in range(LIMIT) %}
+    {{ display(i, LIMIT) }}
+    {% endfor %}
+    {% endif %}
+}

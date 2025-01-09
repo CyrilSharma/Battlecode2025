@@ -33,17 +33,41 @@ class DebugExtension(Extension):
         return f'System.out.println("[{lineno}] " + {message});'
 
 
+# Define bitwise operations
+def bitAnd(value1, value2):
+    return value1 & value2
+
+def bitOr(value1, value2):
+    return value1 | value2
+
+def bitLeftShift(value1, value2):
+    return value1 << value2
+
+def bitRightShift(value1, value2):
+    return value1 >> value2
+
+def intDiv(value1, value2):
+    return value1 // value2
+
 def main():
     parser = argparse.ArgumentParser(description="Generate a .java file from a .java.jinja2 template.")
     parser.add_argument("--input", required=True, help="Path to the input .java.jinja2 template file.")
     parser.add_argument("--output", required=True, help="Path to the output .java file.")
-    parser.add_argument("--mode", required=True, help="Mode of generation (e.g., 'true' for production, 'false' for debug).")
+    parser.add_argument("--prod", required=True, help="Mode of generation (e.g., 'true' for production, 'false' for debug).")
     args = parser.parse_args()
 
     print(args.input)
     print(args.output)
     env = Environment(loader=FileSystemLoader(searchpath='./'))
     env.add_extension(DebugExtension)
+
+    # Add global utility functions.
+    env.globals['bitAnd'] = bitAnd
+    env.globals['bitOr'] = bitOr
+    env.globals['bitLeftShift'] = bitLeftShift
+    env.globals['bitRightShift'] = bitRightShift
+    env.globals['intDiv'] = intDiv
+
     template = env.get_template(args.input)
     rendered_content = template.render(
         directions=[
@@ -56,7 +80,8 @@ def main():
             'Direction.WEST',
             'Direction.NORTHWEST',
             'Direction.CENTER'
-        ]
+        ],
+        prod=(args.prod == 'True')
     )
     with open(args.output, 'w') as output_file:
         output_file.write(rendered_content)
