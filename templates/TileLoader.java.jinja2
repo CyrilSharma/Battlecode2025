@@ -16,9 +16,9 @@ public class TileLoader {
     public static long wall{{ i }} = 0;
     public static long ruin{{ i }} = 0;
 
-    public static long seen_column{{ i }} = 0;
-    public static long wall_column{{ i }} = 0;
-    public static long ruin_column{{ i }} = 0;
+    public static long seen_reversed{{ i }} = 0;
+    public static long wall_reversed{{ i }} = 0;
+    public static long ruin_reversed{{ i }} = 0;
     {% endfor -%}
 
     public static int offset;
@@ -30,9 +30,9 @@ public class TileLoader {
     // But I've been working on this too long.
     {% for i in range(VISION_WIDTH) -%}
     public static int local_seen{{ i }} = 0;
-    public static int local_seen_column{{ i }} = 0;
+    public static int local_seen_reversed{{ i }} = 0;
     public static int local_wall{{ i }} = 0;
-    public static int local_wall_column{{ i }} = 0;
+    public static int local_wall_reversed{{ i }} = 0;
     {% endfor %}
 
     public static void load() throws GameActionException {
@@ -46,28 +46,14 @@ public class TileLoader {
         MapLocation[] ruins = rc.senseNearbyRuins(-1);
         for (int i = ruins.length; --i >= 0; ) {
             MapLocation ruin = ruins[i];
-            long rx = (1L << ruin.x);
-            long ry = (1L << ruin.y);
-            long revx = (lastSquare >> ruin.x);
             switch (ruin.y) {
             {% for y in range(60) -%}
                 case {{ y }} -> {
-                    ruin{{ y }} |= rx;
-                    if ((SymmetryChecker.getSeenHorizontal({{ y }}) & revx) != 0) {
-                        if ((SymmetryChecker.getRuinHorizontal({{ y }}) & revx) == 0) {
-                            SymmetryChecker.RSYM = 0;
-                        }
-                    }
+                    ruin{{ y }} |= (1L << ruin.x);
+                    ruin_reversed{{ y }} |= (lastSquare >> ruin.x);
                 }
             {% endfor %}
                 default -> System.out.println("Invalid Ruin Y");
-            }
-        
-            switch (ruin.x) {
-            {% for x in range(60) -%}
-                case {{ x }} -> ruin_column{{ x }} |= ry;
-            {% endfor %}
-                default -> System.out.println("Invalid Ruin X");
             }
         }
     }
@@ -89,19 +75,19 @@ public class TileLoader {
         local_seen2 = 0b111111111;
         local_seen1 = 0b011111110;
         local_seen0 = 0b001111100;
-        local_seen_column8 = 0b001111100;
-        local_seen_column7 = 0b011111110;
-        local_seen_column6 = 0b111111111;
-        local_seen_column5 = 0b111111111;
-        local_seen_column4 = 0b111111111;
-        local_seen_column3 = 0b111111111;
-        local_seen_column2 = 0b111111111;
-        local_seen_column1 = 0b011111110;
-        local_seen_column0 = 0b001111100;
+        local_seen_reversed8 = 0b001111100;
+        local_seen_reversed7 = 0b011111110;
+        local_seen_reversed6 = 0b111111111;
+        local_seen_reversed5 = 0b111111111;
+        local_seen_reversed4 = 0b111111111;
+        local_seen_reversed3 = 0b111111111;
+        local_seen_reversed2 = 0b111111111;
+        local_seen_reversed1 = 0b011111110;
+        local_seen_reversed0 = 0b001111100;
 
         {% for i in range(VISION_WIDTH) -%}
         local_wall{{ i }} = 0;
-        local_wall_column{{ i }} = 0;
+        local_wall_reversed{{ i }} = 0;
         {% endfor %}
 
         for (int i = mapInfos.length; --i >= 0; ) {
@@ -117,7 +103,7 @@ public class TileLoader {
                     {%- set y = VISION_WIDTH - 1 - ry -%}
                     case 0x{{ '{:08X}'.format(bitOr(ry, bitLeftShift(rx, 16))) }} -> {
                         local_wall{{ y }}          += 0b{{ bitFmt.format(bitLeftShift(1, x)) }};
-                        local_wall_column{{ x }}   += 0b{{ bitFmt.format(bitLeftShift(1, y)) }};
+                        local_wall_reversed{{ y }} += 0b{{ bitFmt.format(bitLeftShift(1, rx)) }};
                     }
                     {% endfor -%}
                     {%- endfor -%}
@@ -127,10 +113,26 @@ public class TileLoader {
         }
 
         // Dump the local masks into the actual masks.
-        MapLocation myloc = rc.getLocation();
+        shiftReversedX = ((rc.getMapWidth() - 1) - (rc.getLocation().x + {{ CORNER_OFFSET }}));
+        if (shiftReversedX > 0) {
+            dumpPositive();
+        } else {
+            dumpNegative();
+        }
+    }
+
+    {% macro dump(type) %}
+    public static void dump{{ type }}() throws GameActionException {
         long rowMask = (1L << rc.getMapWidth()) - 1;
-        int cornerY = myloc.y + {{CORNER_OFFSET}};
-        int shiftX = myloc.x + {{CORNER_OFFSET - (VISION_WIDTH - 1)}};
+        int cornerY = rc.getLocation().y + {{CORNER_OFFSET}};
+        int shiftX = rc.getLocation().x + {{CORNER_OFFSET - (VISION_WIDTH - 1)}};
+        {% if type != 'Positive' -%}
+        int trueReversedShiftX = -shiftReversedX;
+        {%- set shift = '>>> trueReversedShiftX' -%}
+        {%- else -%}
+        {%- set shift = '<< shiftReversedX' -%}
+        {%- endif %}
+
         switch (cornerY) {
             {% for y in range(CORNER_OFFSET, 60 + CORNER_OFFSET) -%}
             case {{ y }} -> {
@@ -139,26 +141,9 @@ public class TileLoader {
                 {%- set localY = VISION_WIDTH - 1 - offset -%}
                 {%- if (globalY >= 0 and globalY < 60) -%}
                 seen{{globalY}} |= ((long)(local_seen{{localY}}) << shiftX) & rowMask;
+                seen_reversed{{globalY}} |= ((long)(local_seen_reversed{{localY}}) {{ shift }}) & rowMask;
                 wall{{globalY}} |= (long)(local_wall{{localY}}) << shiftX;
-                {% endif -%}
-                {%- endfor %}
-            }
-            {% endfor -%}
-            default -> System.out.println("Top Right Corner Out of Bounds.");
-        }
-
-        long colMask = (1L << rc.getMapHeight()) - 1;
-        int cornerX = myloc.x + {{CORNER_OFFSET}};
-        int shiftY = myloc.y + {{CORNER_OFFSET - (VISION_WIDTH - 1)}};
-        switch (cornerX) {
-            {% for x in range(CORNER_OFFSET, 60 + CORNER_OFFSET) -%}
-            case {{ x }} -> {
-                {% for offset in range(0, VISION_WIDTH) -%}
-                {%- set globalX = x - offset -%}
-                {%- set localX = VISION_WIDTH - 1 - offset -%}
-                {%- if (globalX >= 0 and globalX < 60) -%}
-                seen_column{{globalX}} |= ((long)(local_seen_column{{localX}}) << shiftY) & colMask;
-                wall_column{{globalX}} |= (long)(local_wall_column{{localX}}) << shiftY;
+                wall_reversed{{globalY}} |= (long)(local_wall_reversed{{localY}}) {{ shift }};
                 {% endif -%}
                 {%- endfor %}
             }
@@ -166,6 +151,10 @@ public class TileLoader {
             default -> System.out.println("Top Right Corner Out of Bounds.");
         }
     }
+    {% endmacro %}
+
+    {{ dump(type='Positive') }}
+    {{ dump(type='Negative') }}
     
     {# This is faster, but massive. #}
     {% if not prod %}
