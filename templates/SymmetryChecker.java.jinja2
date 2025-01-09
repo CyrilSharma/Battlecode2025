@@ -15,6 +15,7 @@ public class SymmetryChecker {
 
     public static int maxY;
     public static int maxX;
+    public static long seen_fused;
     public static RobotController rc;
     public static void init(RobotController rc) {
         SymmetryChecker.rc = rc;
@@ -40,39 +41,71 @@ public class SymmetryChecker {
     public static int RSYM = 1;
     public static void run() throws GameActionException {
         if (isSymmetryKnown()) return;
-        long seen_fused;
-        if (HSYM != 0) {
-            switch (rc.getMapHeight() / 2) {
-                {% for y in range(30, -1, -1) -%}
-                case {{ y }}: {
-                    seen_fused = TileLoader.seen{{ y }} & getSeenHorizontal({{ y }});
-                    if ((TileLoader.wall{{ y }} & seen_fused) != (getWallHorizontal({{ y }}) & seen_fused)) {
-                        HSYM = 0;
-                    }
-                    if ((TileLoader.ruin{{ y }} & seen_fused) != (getRuinHorizontal({{ y }}) & seen_fused)) {
-                        HSYM = 0;
-                    }
-                }
-                {% endfor %}
-                default: {}
-            }
-        }
+        if (HSYM != 0) checkHorizontal();
+        if (VSYM != 0) checkVertical();
+        if (RSYM != 0) checkRotational();
+    }
 
-        if (VSYM != 0) {
-            switch (rc.getMapWidth() / 2) {
-                {% for x in range(30, -1, -1) -%}
-                case {{ x }}: {
-                    seen_fused = TileLoader.seen_column{{ x }} & getSeenVertical({{ x }});
-                    if ((TileLoader.wall_column{{ x }} & seen_fused) != (getWallVertical({{ x }}) & seen_fused)) {
-                        VSYM = 0;
-                    }
-                    if ((TileLoader.ruin_column{{ x }} & seen_fused) != (getRuinVertical({{ x }}) & seen_fused)) {
-                        VSYM = 0;
-                    }
+    public static void checkHorizontal() throws GameActionException {
+        switch (rc.getLocation().y) {
+            {% for posY in range(0, 60) -%}
+            case {{ posY }} -> {
+                {% for y in range(posY - 4, posY + 5) -%}
+                {%- if y >= 0 and y < 60 -%}
+                seen_fused = TileLoader.seen{{ y }} & getSeenHorizontal({{ y }});
+                if ((TileLoader.wall{{ y }} & seen_fused) != (getWallHorizontal({{ y }}) & seen_fused)) {
+                    HSYM = 0;
                 }
+                if ((TileLoader.ruin{{ y }} & seen_fused) != (getRuinHorizontal({{ y }}) & seen_fused)) {
+                    HSYM = 0;
+                }
+                {% endif -%}
                 {% endfor %}
-                default: {}
             }
+            {% endfor %}
+            default -> {}
+        }
+    }
+
+    public static void checkVertical() throws GameActionException {
+        switch (rc.getLocation().x) {
+            {% for posX in range(0, 60) -%}
+            case {{ posX }} -> {
+                {% for x in range(posX - 4, posX + 5) -%}
+                {%- if x >= 0 and x < 60 -%}
+                seen_fused = TileLoader.seen{{ x }} & TileLoader.seen_reversed{{ x }};
+                if ((TileLoader.wall{{ x }} & seen_fused) != (TileLoader.wall_reversed{{ x }} & seen_fused)) {
+                    VSYM = 0;
+                }
+                if ((TileLoader.ruin{{ x }} & seen_fused) != (TileLoader.ruin_reversed{{ x }} & seen_fused)) {
+                    VSYM = 0;
+                }
+                {% endif -%}
+                {% endfor %}
+            }
+            {% endfor %}
+            default -> {}
+        }
+    }
+
+    public static void checkRotational() throws GameActionException {
+        switch (rc.getLocation().y) {
+            {% for posY in range(0, 60) -%}
+            case {{ posY }} -> {
+                {% for y in range(posY - 4, posY + 5) -%}
+                {%- if y >= 0 and y < 60 -%}
+                seen_fused = TileLoader.seen{{ y }} & getSeenReversedHorizontal({{ y }});
+                if ((TileLoader.wall{{ y }} & seen_fused) != (getWallReversedHorizontal({{ y }}) & seen_fused)) {
+                    RSYM = 0;
+                }
+                if ((TileLoader.ruin{{ y }} & seen_fused) != (getRuinReversedHorizontal({{ y }}) & seen_fused)) {
+                    RSYM = 0;
+                }
+                {% endif -%}
+                {% endfor %}
+            }
+            {% endfor %}
+            default -> {}
         }
     }
 
@@ -90,19 +123,7 @@ public class SymmetryChecker {
     {{ getHorizontal(mask='wall', methodName='getWallHorizontal') }}
     {{ getHorizontal(mask='seen', methodName='getSeenHorizontal') }}
     {{ getHorizontal(mask='ruin', methodName='getRuinHorizontal') }}
-
-
-    {% macro getVertical(mask, methodName) %}
-    public static long {{methodName}}(int x) {
-        return switch (maxX - x) {
-            {% for val in range(60) %}
-            case {{ val }} -> TileLoader.{{mask}}{{ val }};
-            {%- endfor %}
-            default -> 0;
-        };
-    }
-    {% endmacro %}
-    {{ getVertical(mask='wall_column', methodName='getWallVertical') }}
-    {{ getVertical(mask='seen_column', methodName='getSeenVertical') }}
-    {{ getVertical(mask='ruin_column', methodName='getRuinVertical') }}
+    {{ getHorizontal(mask='wall_reversed', methodName='getWallReversedHorizontal') }}
+    {{ getHorizontal(mask='seen_reversed', methodName='getSeenReversedHorizontal') }}
+    {{ getHorizontal(mask='ruin_reversed', methodName='getRuinReversedHorizontal') }}
 }
