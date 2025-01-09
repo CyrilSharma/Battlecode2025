@@ -16,11 +16,11 @@ public class RobotPlayer {
                     try {
                         TileLoader.load();
                         {{ classname }}.run();
-                        {% if not prod %}
                         SymmetryChecker.run();
                         // rc.setIndicatorString("Symmetry: " + SymmetryChecker.getSymmetry());
                         rc.setIndicatorString("Symmetry: R = " + SymmetryChecker.RSYM + " V = " + SymmetryChecker.VSYM + " H = " + SymmetryChecker.HSYM);
-                        TileLoader.display();
+                        {% if not prod %}
+                        // TileLoader.display();
                         {% endif %}
                     } catch (GameActionException e) {
                         System.out.println("Exception = ");
