@@ -1,0 +1,108 @@
+
+{% import 'helpers/Utils.java.jinja2' as utils %}
+
+package current;
+import battlecode.common.*;
+
+public class SymmetryChecker {
+
+    public enum Symmetry {
+        Unknown,
+        Rotational,
+        Horizontal,
+        Vertical
+    };
+
+    public static int maxY;
+    public static int maxX;
+    public static RobotController rc;
+    public static void init(RobotController rc) {
+        SymmetryChecker.rc = rc;
+        maxY = rc.getMapHeight() - 1;
+        maxX = rc.getMapWidth() - 1;
+    }
+
+    public static boolean isSymmetryKnown() {
+        return (VSYM + HSYM + RSYM) == 1;
+    }
+
+    public static Symmetry getSymmetry() {
+        return switch (VSYM * 4 + HSYM * 2 + RSYM) {
+            case 1 -> Symmetry.Rotational;
+            case 2 -> Symmetry.Horizontal;
+            case 4 -> Symmetry.Vertical;
+            default -> Symmetry.Unknown;
+        };
+    }
+
+    public static int VSYM = 1;
+    public static int HSYM = 1;
+    public static int RSYM = 1;
+    public static void run() throws GameActionException {
+        if (isSymmetryKnown()) return;
+        long seen_fused;
+        if (HSYM != 0) {
+            switch (rc.getMapHeight() / 2) {
+                {% for y in range(30, -1, -1) -%}
+                case {{ y }}: {
+                    seen_fused = TileLoader.seen{{ y }} & getSeenHorizontal({{ y }});
+                    if ((TileLoader.wall{{ y }} & seen_fused) != (getWallHorizontal({{ y }}) & seen_fused)) {
+                        HSYM = 0;
+                    }
+                    if ((TileLoader.ruin{{ y }} & seen_fused) != (getRuinHorizontal({{ y }}) & seen_fused)) {
+                        HSYM = 0;
+                    }
+                }
+                {% endfor %}
+                default: {}
+            }
+        }
+
+        if (VSYM != 0) {
+            switch (rc.getMapWidth() / 2) {
+                {% for x in range(30, -1, -1) -%}
+                case {{ x }}: {
+                    seen_fused = TileLoader.seen_column{{ x }} & getSeenVertical({{ x }});
+                    if ((TileLoader.wall_column{{ x }} & seen_fused) != (getWallVertical({{ x }}) & seen_fused)) {
+                        VSYM = 0;
+                    }
+                    if ((TileLoader.ruin_column{{ x }} & seen_fused) != (getRuinVertical({{ x }}) & seen_fused)) {
+                        VSYM = 0;
+                    }
+                }
+                {% endfor %}
+                default: {}
+            }
+        }
+    }
+
+    // Can be done by just having masks that store the correct horizontal mask or whatever.
+    {% macro getHorizontal(mask, methodName) %}
+    public static long {{methodName}}(int y) {
+        return switch (maxY - y) {
+            {% for val in range(60) %}
+            case {{ val }} -> TileLoader.{{mask}}{{ val }};
+            {%- endfor %}
+            default -> 0;
+        };
+    }
+    {% endmacro %}
+    {{ getHorizontal(mask='wall', methodName='getWallHorizontal') }}
+    {{ getHorizontal(mask='seen', methodName='getSeenHorizontal') }}
+    {{ getHorizontal(mask='ruin', methodName='getRuinHorizontal') }}
+
+
+    {% macro getVertical(mask, methodName) %}
+    public static long {{methodName}}(int x) {
+        return switch (maxX - x) {
+            {% for val in range(60) %}
+            case {{ val }} -> TileLoader.{{mask}}{{ val }};
+            {%- endfor %}
+            default -> 0;
+        };
+    }
+    {% endmacro %}
+    {{ getVertical(mask='wall_column', methodName='getWallVertical') }}
+    {{ getVertical(mask='seen_column', methodName='getSeenVertical') }}
+    {{ getVertical(mask='ruin_column', methodName='getRuinVertical') }}
+}
