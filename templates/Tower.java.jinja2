@@ -16,6 +16,10 @@ public class Tower {
         myloc = rc.getLocation();
         MapLocation nextLoc;
 
+        if (rc.getRoundNum() > 50) {
+            if(rc.getMoney() < 1250) return;
+        }
+
         loop: {
         {%- for direction in directions %}
             nextLoc = myloc.add({{ direction }});
