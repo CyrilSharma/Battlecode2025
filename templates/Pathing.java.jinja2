@@ -9,17 +9,33 @@ public class Pathing {
 
     public static void pathTo(MapLocation target) throws GameActionException {
         Direction dir = rc.getLocation().directionTo(target);
-        if (rc.canMove(dir)) rc.move(dir);
+        MapInfo nextTile;
+        if (rc.canMove(dir)){
+            nextTile = rc.senseMapInfo(rc.getLocation().add(dir));
+            if(!nextTile.getPaint().isAlly() && rc.canAttack(rc.getLocation().add(dir))){
+                rc.attack(rc.getLocation().add(dir));
+            }
+            rc.move(dir);
+            return;
+        }
         Direction le = dir, ri = dir;
         loop: {
             {% for i in range(4) %}
                 le = le.rotateLeft();
                 if (rc.canMove(le)) {
+                    nextTile = rc.senseMapInfo(rc.getLocation().add(le));
+                    if(!nextTile.getPaint().isAlly() && rc.canAttack(rc.getLocation().add(le))){
+                        rc.attack(rc.getLocation().add(le));
+                    }
                     rc.move(le);
                     break loop;
                 }               
                 ri = ri.rotateRight();
                 if (rc.canMove(ri)) {
+                    nextTile = rc.senseMapInfo(rc.getLocation().add(ri));
+                    if(!nextTile.getPaint().isAlly() && rc.canAttack(rc.getLocation().add(ri))){
+                        rc.attack(rc.getLocation().add(ri));
+                    }
                     rc.move(ri);
                     break loop;
                 }               
