@@ -9,10 +9,13 @@ public class RobotPlayer {
         Soldier.init(rc);
         Splasher.init(rc);
         Tower.init(rc);
+        TileLoader.init(rc);
         {%- macro generate_main_loop(classname) -%}
                 while (true) {
                     try {
+                        TileLoader.load();
                         {{ classname }}.run();
+                        // TileLoader.display();
                     } catch (GameActionException e) {
                         System.out.println("Exception = ");
                         e.printStackTrace();
