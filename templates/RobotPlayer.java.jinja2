@@ -10,13 +10,17 @@ public class RobotPlayer {
         Splasher.init(rc);
         Tower.init(rc);
         TileLoader.init(rc);
+        SymmetryChecker.init(rc);
         {%- macro generate_main_loop(classname) -%}
                 while (true) {
                     try {
                         TileLoader.load();
                         {{ classname }}.run();
                         {% if not prod %}
-                        // TileLoader.display();
+                        SymmetryChecker.run();
+                        // rc.setIndicatorString("Symmetry: " + SymmetryChecker.getSymmetry());
+                        rc.setIndicatorString("Symmetry: R = " + SymmetryChecker.RSYM + " V = " + SymmetryChecker.VSYM + " H = " + SymmetryChecker.HSYM);
+                        TileLoader.display();
                         {% endif %}
                     } catch (GameActionException e) {
                         System.out.println("Exception = ");
