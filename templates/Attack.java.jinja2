@@ -30,10 +30,30 @@ public class Attack {
         return false;
     }
 
-    public static void soldierTryAttack() throws GameActionException {
+        public static void soldierTryAttack() throws GameActionException {
+        // Prioritize Attacking Towers.
         for (int i = Globals.enemies.length; --i >= 0;) {
-            MapLocation loc = Globals.enemies[i].location;
-            if (rc.canAttack(loc)) rc.attack(loc);
+            RobotInfo enemy = Globals.enemies[i];
+            switch (enemy.type) {
+                case SOLDIER: continue;
+                case SPLASHER: continue;
+                case MOPPER: continue;
+                default: break;
+            }
+            MapLocation loc = enemy.location;
+            if (rc.canAttack(loc)) {
+                rc.attack(loc);
+                return;
+            }
+        }
+
+        // If no towers to attack, try to add paint beneath one of my friends.
+        for (int i = Globals.friends.length; --i >= 0;) {
+            MapLocation loc = Globals.friends[i].location;
+            MapInfo mapInfo = rc.senseMapInfo(loc);
+            if (rc.canAttack(loc) && mapInfo.getPaint() == PaintType.EMPTY) {
+                rc.attack(loc);
+            }
         }
     }
 
