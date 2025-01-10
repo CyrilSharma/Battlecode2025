@@ -98,11 +98,11 @@ public class Attack {
             {% endfor %}
         }
 
-        {# {% for i in range(0, 9) -%}
+        {% for i in range(0, 9) -%}
         {% set dir = shortDirections[i] %}
-        {% debug('minDistToEnemy_' ~ dir, 'targetLoc_' ~ dir ~ '.x',
+        {% debug('minDistToEnemy_' ~ dir, 'targetLoc_' ~ dir ~ '.x', 'canMove_' ~ dir,
                  'targetLoc_' ~ dir ~ '.y', 'myPaintDmg_' ~ dir, 'paintDmgAttackRange_' ~ dir) %}
-        {% endfor %} #}
+        {% endfor %}
 
         boolean bestWins = false;
         Direction bestDir = {{ directions[0] }};
@@ -110,6 +110,11 @@ public class Attack {
         {% for i in range(1, 9) -%}
         {{ chooseBest(type, i) | indent(4) }}
         {% endfor %}
+
+        {% set dir = 'best' %}
+        {% debug('minDistToEnemy_' ~ dir, 'targetLoc_' ~ dir ~ '.x', 'canMove_' ~ dir,
+                 'targetLoc_' ~ dir ~ '.y', 'myPaintDmg_' ~ dir, 'paintDmgAttackRange_' ~ dir) %}
+        System.out.println("\n");
 
         if (rc.canMove(bestDir)) {
             rc.move(bestDir);
