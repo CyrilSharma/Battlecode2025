@@ -307,8 +307,11 @@ public class Soldier {
                 Explore.exploreOnPaint(near);
             }
             return;
-        }
-        else if (rc.getNumberTowers() < 25 && markedResource == null && removing == null){
+        } else if (Attack.shouldSoldierMicro()) {
+            rc.setIndicatorString("Attacking");
+            Attack.soldierAttackMicro();
+            return;
+        } else if (rc.getNumberTowers() < 25 && markedResource == null && removing == null){
             buildTower = null;
             ruinLoc = seeRuin();
             if (ruinLoc != null) {

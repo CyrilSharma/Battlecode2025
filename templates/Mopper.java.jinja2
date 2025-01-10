@@ -251,8 +251,10 @@ public class Mopper {
                 Explore.exploreOnPaint(near);
             }
             return;
-        }
-        else if (rc.getNumberTowers() < 25 && removing == null){
+        } else if (Attack.shouldMopperMicro()) {
+            rc.setIndicatorString("Mopping");
+            Attack.mopperAttackMicro();
+        } else if (rc.getNumberTowers() < 25 && removing == null){
             buildTower = null;
             ruinLoc = seeRuin();
             if (ruinLoc != null) {
