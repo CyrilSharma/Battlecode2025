@@ -11,6 +11,11 @@ public class Tower {
         Tower.rc = rc;
     }
 
+    public static UnitType getUnitType() throws GameActionException {
+        if (Globals.rng.nextInt(2) == 0 || rc.getMoney() < 1300) return UnitType.SOLDIER;
+        return UnitType.MOPPER;
+    }
+
     public static void run() throws GameActionException {
         // Initialize
         myloc = rc.getLocation();
@@ -18,13 +23,14 @@ public class Tower {
 
         if (rc.getRoundNum() > 50) {
             if(rc.getMoney() < 1250) return;
+            if(rc.getPaint() < 200) return;
         }
 
         loop: {
         {%- for direction in directions %}
             nextLoc = myloc.add({{ direction }});
-            if (rc.canBuildRobot(UnitType.SOLDIER, nextLoc)) {
-                rc.buildRobot(UnitType.SOLDIER, nextLoc);
+            if (rc.canBuildRobot(getUnitType(), nextLoc)) {
+                rc.buildRobot(getUnitType(), nextLoc);
                 break loop;
             }
         {% endfor -%}

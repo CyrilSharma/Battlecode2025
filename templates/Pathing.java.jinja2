@@ -9,7 +9,10 @@ public class Pathing {
 
     public static boolean canPaint(MapInfo mi) throws GameActionException {
         if (rc.getType() == UnitType.SOLDIER) {
-            return mi.getPaint() == PaintType.EMPTY;
+            return (mi.getPaint() == PaintType.EMPTY && rc.getPaint() > 20);
+        }
+        if (rc.getType() == UnitType.MOPPER) {
+            return (!mi.getPaint().isAlly() && mi.getPaint() != PaintType.EMPTY);
         }
         return false;
     }

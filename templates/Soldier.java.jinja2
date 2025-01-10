@@ -152,16 +152,6 @@ public class Soldier {
         return false;
     }
 
-    public static void explore() throws GameActionException {
-        if (exploreTarget == null || rc.getLocation().distanceSquaredTo(exploreTarget) <= 5) {
-            exploreTarget = new MapLocation(
-                Globals.rng.nextInt(rc.getMapWidth()),
-                Globals.rng.nextInt(rc.getMapHeight())
-            );
-        }
-        Pathing.pathTo(exploreTarget);
-    }
-
     public static void moneyPattern() throws GameActionException {
         //make sure we see no ruins
         //and make sure nothing in the 5 by 5 is marked
@@ -203,7 +193,7 @@ public class Soldier {
         int bestDist = 1000000000;
         boolean secondCol = false;
         for (int i = near.length; --i >= 0; ) {
-            if (near[i].getMark() != PaintType.EMPTY && near[i].getMark() != near[i].getPaint()) {
+            if (near[i].getMark() != PaintType.EMPTY && near[i].getMark() != near[i].getPaint() && canChangeColor(near[i])) {
                 int d = rc.getLocation().distanceSquaredTo(near[i].getMapLocation());
                 if (d < bestDist) {
                     bestDist = d;
@@ -309,8 +299,13 @@ public class Soldier {
         myloc = rc.getLocation();
         myPaint = rc.getPaint();
 
-        if (myPaint <= (paintCapacity >> 2) && home != null) {
-            refuel();
+        if (myPaint <= (paintCapacity >> 2)) {
+            if (home != null) {
+                refuel();
+            }
+            else {
+                Explore.exploreOnPaint(near);
+            }
             return;
         }
         else if (rc.getNumberTowers() < 25 && markedResource == null && removing == null){
@@ -343,7 +338,7 @@ public class Soldier {
         }
 
         moneyPattern();
-        if(!paintMarkedSquares()) explore();
+        if(!paintMarkedSquares()) Explore.explore(near);
 
         // Lay paint where I am first.
         MapInfo currentTile = rc.senseMapInfo(myloc);

@@ -11,6 +11,7 @@ public class RobotPlayer {
         Tower.init(rc);
         TileLoader.init(rc);
         SymmetryChecker.init(rc);
+        Explore.init(rc);
         {%- macro generate_main_loop(classname) -%}
                 while (true) {
                     try {
@@ -18,7 +19,7 @@ public class RobotPlayer {
                         {{ classname }}.run();
                         SymmetryChecker.run();
                         // rc.setIndicatorString("Symmetry: " + SymmetryChecker.getSymmetry());
-                        rc.setIndicatorString("Symmetry: R = " + SymmetryChecker.RSYM + " V = " + SymmetryChecker.VSYM + " H = " + SymmetryChecker.HSYM);
+                        //rc.setIndicatorString("Symmetry: R = " + SymmetryChecker.RSYM + " V = " + SymmetryChecker.VSYM + " H = " + SymmetryChecker.HSYM);
                         {% if not prod %}
                         // TileLoader.display();
                         {% endif %}
