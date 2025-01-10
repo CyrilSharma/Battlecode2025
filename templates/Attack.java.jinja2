@@ -71,7 +71,6 @@ public class Attack {
         }
 
         if (bestLoc == null) return;
-        rc.setIndicatorString("HERE");
         rc.setIndicatorDot(bestLoc, 0, 0, 0);
         rc.attack(bestLoc);
     }
