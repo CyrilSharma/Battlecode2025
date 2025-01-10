@@ -731,7 +731,6 @@ public class TileLoader {
     }
 
     public static void loadWalls() throws GameActionException {
-        System.out.println("I'm loading!");
         // We measure from the top right corner since that will always 
         // Have non-negative coordinates, meaning this hashCode magic will make sense.
         offset = rc.getLocation().translate(4, 4).hashCode();
