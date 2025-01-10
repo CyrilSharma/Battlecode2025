@@ -6,11 +6,8 @@ import battlecode.common.*;
 public class Soldier {
     public static RobotController rc;
     public static MapLocation home = null;
-    public static MapLocation buildTower = null;
-    public static MapLocation myloc;
-    public static int paintCapacity = UnitType.SOLDIER.paintCapacity;
+    public static final int paintCapacity = UnitType.SOLDIER.paintCapacity;
     public static int myPaint;
-    public static MapLocation exploreTarget;
     public static MapInfo[] near;
     public static MapLocation ruinLoc;
     public static MapLocation markedResource = null;
@@ -18,10 +15,87 @@ public class Soldier {
     public static int removeMask = 0;
     public static boolean[][] resourcePat = null;
 
+    public static MapLocation buildTower = null;
+    public static boolean patternLaid = false;
+    public static int buildExploreTurns = 0;
+
     public static void init(RobotController rc) {
         Soldier.rc = rc;
     }
 
+    public static void run() throws GameActionException {
+        initTurn();
+        runTurn();
+        postTurn();
+    }
+
+    public static void initTurn() throws GameActionException {
+        rc.setIndicatorString("Undefined");
+        setHome();
+        if (resourcePat == null) resourcePat = rc.getResourcePattern();
+        myPaint = rc.getPaint();
+        near = rc.senseNearbyMapInfos(-1);
+        updateBuild();
+    }
+
+    public static void runTurn() throws GameActionException {
+        boolean shouldGoHome = (myPaint <= (paintCapacity >> 2));
+        boolean canBuild = rc.getNumberTowers() < 25;
+        // If not building a money pattern, and not removing a resource. 
+        // boolean canGetDistracted = (patternLaid && rc.getMoney() < 1000); // false 
+        // && (markedResource == null && removing == null)
+
+
+        
+        // boolean canGetDistracted = (patternLad && rc.getMoney() < 200 && rc.getNumberTowers() < 5) 
+        
+        // If we're really low on money, just go somewhere else. 
+        // But only if this is a common area, where someone else will find it.
+        {# RobotInfo[] friends = rc.senseNearbyRobots(9, rc.getTeam());
+        if (friends.length >= 1) resetBuild(); #}
+        {# if (rc.getMoney() < 200) {
+            // But only if this is a common area, where someone else will find it.
+            RobotInfo[] friends = rc.senseNearbyRobots(9, rc.getTeam());
+            if (friends.length >= 1) resetBuild();
+        } #}
+
+        boolean shouldBuild = (canBuild) && (buildTower != null);
+        {# {% debug('canGetDistracted', 'shouldBuild', 'patternLaid') %} #}
+        if (shouldGoHome && home != null) {
+            rc.setIndicatorString("Refueling");
+            refuel();
+        } else if (shouldGoHome && home == null) {
+            rc.setIndicatorString("Exploring");
+            Explore.exploreOnPaint(near);
+        } else if (shouldBuild) {
+            rc.setIndicatorString("Building (" + buildTower.x + ", " + buildTower.y + ")");
+            makeTower();
+        } else if (markedResource != null) {
+            rc.setIndicatorString("Making Resource");
+            makeResourcePatch();
+        } else if (removing != null) {
+            rc.setIndicatorString("Removing Pattern");
+            removePattern();
+        } else {
+            rc.setIndicatorString("Money Pattern");
+            moneyPattern();
+            if (!paintMarkedSquares()) {
+                Explore.explore(near);
+                rc.setIndicatorString("Also Exploring: " + Explore.exploreTarget.x + " " + Explore.exploreTarget.y);
+            }
+        }
+    }
+
+
+    public static void postTurn() throws GameActionException {
+        MapLocation myloc = rc.getLocation();
+        MapInfo currentTile = rc.senseMapInfo(myloc);
+        if (!currentTile.getPaint().isAlly() && rc.canAttack(myloc)){
+            rc.attack(myloc);
+        }
+    }
+
+    // TODO: Make this a switch.
     public static boolean isTower(UnitType u) {
         return (u == UnitType.LEVEL_ONE_PAINT_TOWER ||
                 u == UnitType.LEVEL_ONE_MONEY_TOWER ||
@@ -75,15 +149,22 @@ public class Soldier {
     }
 
     public static MapLocation seeRuin() throws GameActionException {
+        MapLocation closest = null;
+        int lowest = 10000000;
         for (int i = near.length; --i >= 0; ) {
             if (near[i].hasRuin()) {
                 RobotInfo r = rc.senseRobotAtLocation(near[i].getMapLocation());
                 if (r == null) {
-                    return near[i].getMapLocation();
+                    MapLocation loc = near[i].getMapLocation();
+                    int d = loc.distanceSquaredTo(rc.getLocation());
+                    if (d < lowest) {
+                        lowest = d;
+                        closest = loc;
+                    }
                 }
             }
         }
-        return null;
+        return closest;
     }
 
     public static UnitType getTowerToBuild() throws GameActionException {
@@ -93,22 +174,34 @@ public class Soldier {
 
     public static void makeTower() throws GameActionException {
         assert(buildTower != null);
+        {# if (patternLaid && buildExploreTurns > 0) {
+            Explore.exploreOutOfVision(buildTower);
+            --buildExploreTurns;
+            return;
+        } #}
+        if (rc.getLocation().distanceSquaredTo(buildTower) >= 4) {
+            Pathing.pathTo(buildTower);
+            return;
+        }
 
         UnitType t = getTowerToBuild();
-        MapLocation check = buildTower.add(Direction.NORTH);
-        if (rc.canSenseLocation(check) && rc.senseMapInfo(check).getMark() == PaintType.EMPTY && rc.canMarkTowerPattern(t, buildTower)){
+        MapLocation check = buildTower.add(buildTower.directionTo(rc.getLocation()));
+        boolean towerPatternMarked = (rc.senseMapInfo(check).getMark() != PaintType.EMPTY);
+        if (!towerPatternMarked && rc.canMarkTowerPattern(t, buildTower)) {
             rc.markTowerPattern(t, buildTower);
         }
 
+        int saw = 0;
+        int correct = 0;
         MapLocation goal = null;
         boolean secondCol = false;
         int bestDist = 1000000000;
-
         for (int i = 3; --i >= -2; ){
             for (int j = 3; --j >= -2; ){
                 if (i == 0 && j == 0) continue;
                 MapLocation tmp = new MapLocation(buildTower.x + i, buildTower.y + j);
                 if (rc.canSenseLocation(tmp)) {
+                    ++saw;
                     MapInfo mi = rc.senseMapInfo(tmp);
                     if (mi.getMark() != mi.getPaint() && mi.getMark() != PaintType.EMPTY && canChangeColor(mi)) {
                         int d = rc.getLocation().distanceSquaredTo(tmp);
@@ -117,6 +210,8 @@ public class Soldier {
                             goal = tmp;
                             secondCol = mi.getMark() == PaintType.ALLY_SECONDARY;
                         }
+                    } else {
+                        ++correct;
                     }
                 }
             }
@@ -124,23 +219,25 @@ public class Soldier {
         if (goal != null) {
             if (rc.canAttack(goal)) {
                 rc.attack(goal, secondCol);
-            }
-            else {
+            } else {
                 Pathing.pathTo(goal);
             }
-        }
-        else {
+        } else {
+            if (saw == 24 && correct == 24 && patternLaid == false) {
+                buildExploreTurns = 10;
+                patternLaid = true;
+            }
             if (rc.canCompleteTowerPattern(UnitType.LEVEL_ONE_PAINT_TOWER, buildTower)){
                 rc.completeTowerPattern(UnitType.LEVEL_ONE_PAINT_TOWER, buildTower);
                 removing = buildTower;
                 removeMask = (1 << 25) - 1;
-            }
-            if (rc.canCompleteTowerPattern(UnitType.LEVEL_ONE_MONEY_TOWER, buildTower)){
+                resetBuild();
+            } else if (rc.canCompleteTowerPattern(UnitType.LEVEL_ONE_MONEY_TOWER, buildTower)){
                 rc.completeTowerPattern(UnitType.LEVEL_ONE_MONEY_TOWER, buildTower);
                 removing = buildTower;
                 removeMask = (1 << 25) - 1;
+                resetBuild();
             }
-            Pathing.pathTo(buildTower);
         }
     }
 
@@ -290,75 +387,55 @@ public class Soldier {
         }
     }
 
-    public static void run() throws GameActionException {
-        near = rc.senseNearbyMapInfos();
-        // We do this every turn in the event the tower got destroyed when the unit was created.
-        setHome();
-        if (resourcePat == null) resourcePat = rc.getResourcePattern();
-
-        myloc = rc.getLocation();
-        myPaint = rc.getPaint();
-
-        if (myPaint <= (paintCapacity >> 2)) {
-            if (home != null) {
-                refuel();
-            }
-            else {
-                Explore.exploreOnPaint(near);
-            }
+    public static void updateBuild() throws GameActionException {
+        if (rc.senseNearbyRobots(9, rc.getTeam()).length >= 1) {
+            resetBuild();
             return;
         }
-        else if (rc.getNumberTowers() < 25 && markedResource == null && removing == null){
-            buildTower = null;
-            ruinLoc = seeRuin();
-            if (ruinLoc != null) {
-                boolean incRuin = seeIncompleteRuin(ruinLoc);
-
-                if (incRuin){
-                    buildTower = ruinLoc;
-                }
-                else if (ruinLoc != null && rc.getMoney() >= 1000) {
-                    buildTower = ruinLoc;   
-                }
-
-                if (buildTower != null) {
-                    makeTower();
-                }
-            }
+        {# int soldierCount = 0;
+        for (RobotInfo r: rc.senseNearbyRobots(9, rc.getTeam())) {
+            if (r.type == UnitType.SOLDIER) soldierCount++;
         }
-        
-        if (markedResource != null) {
-            makeResourcePatch();
+        if (soldierCount != 0) {
+            resetBuild();
             return;
-        }
-
-        if (removing != null) {
-            removePattern();
-            return;
-        }
-
-        moneyPattern();
-        if(!paintMarkedSquares()) Explore.explore(near);
-
-        // Lay paint where I am first.
-        MapInfo currentTile = rc.senseMapInfo(myloc);
-        if (!currentTile.getPaint().isAlly() && rc.canAttack(myloc)){
-            rc.attack(myloc);
-        }
-
-        // Paint around me.
-        {# MapLocation nextLoc;
-        MapInfo nextLocInfo;
-        RobotInfo unitInfo;
-        loop: {
-        {%- for direction in directions %}
-            nextLoc = myloc.add({{ direction }});
-            nextLocInfo = rc.senseMapInfo(nextLoc);
-            if (rc.canAttack(nextLoc) && !nextLocInfo.getPaint().isAlly()) {
-                rc.attack(nextLoc);
-                break loop;
-            }
-        {% endfor -%}
         } #}
+
+        if (buildTower != null) {
+            if (rc.canSenseLocation(buildTower) && rc.senseRobotAtLocation(buildTower) != null) {
+                resetBuild();
+            }
+            return;
+        }
+
+        ruinLoc = seeRuin();
+        if (ruinLoc == null) {
+            resetBuild();
+            return;
+        }
+
+        // Make sure we're the only ones trying to build this.
+        {# MapLocation closest = rc.getLocation();
+        int closestDistance = closest.distanceSquaredTo(ruinLoc);
+        for (RobotInfo r: rc.senseNearbyRobots(ruinLoc, 4, rc.getTeam())) {
+            if (r.type == UnitType.SOLDIER) {
+                int d = ruinLoc.distanceSquaredTo(r.location);
+                if (d < closestDistance) {
+                    closestDistance = d;
+                    closest = r.location;
+                }
+            }
+        } #}
+        if (closest.equals(rc.getLocation())) {
+            buildTower = ruinLoc;
+            return;
+        }
+        resetBuild();
+    }
+
+    public static void resetBuild() throws GameActionException {
+        buildTower = null;
+        patternLaid = false;
+        buildExploreTurns = 0;
     }
 }

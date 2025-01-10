@@ -3,7 +3,6 @@ import battlecode.common.*;
 
 public class Explore {
     public static RobotController rc;
-    public static MapLocation exploreTarget = null;
     public static void init(RobotController rc) {
         Explore.rc = rc;
     }
@@ -12,6 +11,7 @@ public class Explore {
         explore(near);
     }
 
+    public static MapLocation exploreTarget = null;
     public static void explore(MapInfo[] near) throws GameActionException {
         if (exploreTarget == null || rc.getLocation().distanceSquaredTo(exploreTarget) <= 5) {
             exploreTarget = new MapLocation(
@@ -20,6 +20,19 @@ public class Explore {
             );
         }
         Pathing.pathTo(exploreTarget);
+    }
+
+    public static MapLocation outOfVisionTarget = null;
+    public static void exploreOutOfVision(MapLocation center) throws GameActionException {
+        if (outOfVisionTarget == null || rc.getLocation().distanceSquaredTo(outOfVisionTarget) <= 5) {
+            while (outOfVisionTarget == null || outOfVisionTarget.distanceSquaredTo(center) <= 16) {
+                outOfVisionTarget = new MapLocation(
+                    center.x + (Globals.rng.nextInt(16) - 8),
+                    center.y + (Globals.rng.nextInt(16) - 8)
+                );
+            }
+        }
+        Pathing.pathTo(outOfVisionTarget);
     }
 
 }
