@@ -174,20 +174,20 @@ public class Attack {
                 {% set paintDmg = '(2 * 2) / splasherActionCooldown' if type in ['soldier', 'splasher'] else '(4 * 2) / splasherActionCooldown' -%}
                 {% set myPaintDmg = '(2 * 2)' if type == 'splasher' else
                                     (mopperPaintDmg + mopperPaintHeal) if type == 'mopper' else '0' -%}
-                if (d < splasherActionRadiusSquared) {
+                if (d <= splasherActionRadiusSquared) {
                     paintDmgAttackRange_{{dir}} += {{ paintDmg }};
                 }
-                if (d < {{type}}ActionRadiusSquared) {
+                if (d <= {{type}}ActionRadiusSquared) {
                     myPaintDmg_{{dir}} = {{ myPaintDmg }};
                 }
                 if (d < minDistToEnemy_{{dir}}) minDistToEnemy_{{dir}} = d;
                 break {{label}};
             }
             case MOPPER: {
-                if (d < mopperActionRadiusSquared) {
+                if (d <= mopperActionRadiusSquared) {
                     paintDmgAttackRange_{{dir}} += {{ mopperPaintDmg + mopperPaintHeal / mopperCooldown }};
                 }
-                if (d < {{type}}ActionRadiusSquared) {
+                if (d <= {{type}}ActionRadiusSquared) {
                     {% set myPaintDmg = '(2 * 2 * 2)' if type == 'splasher' else
                                         (mopperPaintDmg + mopperPaintHeal) if type == 'mopper' else '0' -%}
                     myPaintDmg_{{dir}} = {{ myPaintDmg }};
@@ -196,7 +196,7 @@ public class Attack {
                 break {{label}};
             }
             case SOLDIER: {
-                if (d < {{type}}ActionRadiusSquared) {
+                if (d <= {{type}}ActionRadiusSquared) {
                     {% set myPaintDmg = '(2 * 2)' if type == 'splasher' else
                                         (mopperPaintDmg + mopperPaintHeal) if type == 'mopper' else '0' -%}
                     myPaintDmg_{{dir}} = {{ myPaintDmg }};
@@ -210,7 +210,7 @@ public class Attack {
                 'LEVEL_TWO_DEFENSE_TOWER', 'LEVEL_TWO_MONEY_TOWER', 'LEVEL_TWO_PAINT_TOWER'] -%}
 
             case {{tower}}: {
-                if (d < {{type}}ActionRadiusSquared) {
+                if (d <= {{type}}ActionRadiusSquared) {
                     {% set myPaintDmg = '(2 * 2)' if type == 'splasher' else
                                         (mopperPaintDmg + mopperPaintHeal) if type == 'mopper' else '0' -%}
                     myPaintDmg_{{dir}} = {{ myPaintDmg }};
