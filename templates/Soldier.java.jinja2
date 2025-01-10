@@ -299,17 +299,18 @@ public class Soldier {
         myloc = rc.getLocation();
         myPaint = rc.getPaint();
 
-        if (myPaint <= (paintCapacity >> 2)) {
-            if (home != null) {
-                refuel();
-            }
-            else {
-                Explore.exploreOnPaint(near);
-            }
+        boolean shouldGoHome = (myPaint <= (paintCapacity >> 2));
+        if (shouldGoHome && home != null) {
+            rc.setIndicatorString("Refueling");
+            refuel();
             return;
         } else if (Attack.shouldSoldierMicro()) {
             rc.setIndicatorString("Attacking");
             Attack.soldierAttackMicro();
+            return;
+        } else if (shouldGoHome && home == null) {
+            rc.setIndicatorString("Exploring on Paint");
+            Explore.exploreOnPaint(near);
             return;
         } else if (rc.getNumberTowers() < 25 && markedResource == null && removing == null){
             buildTower = null;
