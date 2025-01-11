@@ -3,6 +3,7 @@ import battlecode.common.*;
 public class RobotPlayer {
     @SuppressWarnings("unused")
     public static void run(RobotController rc) throws GameActionException {
+        {# This is technically unnecessary but this is the easiest way to get a reference to the controller #}
         Globals.init(rc);
         Mopper.init(rc);
         Pathing.init(rc);
@@ -11,15 +12,17 @@ public class RobotPlayer {
         Tower.init(rc);
         TileLoader.init(rc);
         SymmetryChecker.init(rc);
+        Attack.init(rc);
         Explore.init(rc);
         {%- macro generate_main_loop(classname) -%}
                 while (true) {
                     try {
                         TileLoader.load();
+                        Globals.run();
                         {{ classname }}.run();
                         SymmetryChecker.run();
                         // rc.setIndicatorString("Symmetry: " + SymmetryChecker.getSymmetry());
-                        //rc.setIndicatorString("Symmetry: R = " + SymmetryChecker.RSYM + " V = " + SymmetryChecker.VSYM + " H = " + SymmetryChecker.HSYM);
+                        // rc.setIndicatorString("Symmetry: R = " + SymmetryChecker.RSYM + " V = " + SymmetryChecker.VSYM + " H = " + SymmetryChecker.HSYM);
                         {% if not prod %}
                         // TileLoader.display();
                         {% endif %}

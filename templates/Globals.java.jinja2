@@ -3,8 +3,17 @@ import java.util.Random;
 import battlecode.common.*;
 
 public class Globals {
+    public static RobotController rc;
     public static final Random rng = new Random();
     public static void init(RobotController rc) {
         rng.setSeed((long) rc.getID());
+        Globals.rc = rc;
+    }
+
+    public static RobotInfo[] friends;
+    public static RobotInfo[] enemies;
+    public static void run() throws GameActionException {
+        friends = rc.senseNearbyRobots(-1, rc.getTeam());
+        enemies = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
     }
 }

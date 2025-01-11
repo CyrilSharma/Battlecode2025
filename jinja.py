@@ -49,6 +49,10 @@ def bitRightShift(value1, value2):
 def intDiv(value1, value2):
     return value1 // value2
 
+def capitalizeFirstLetter(s):
+    if not s: return s
+    return s[0].upper() + s[1:]
+
 def main():
     parser = argparse.ArgumentParser(description="Generate a .java file from a .java.jinja2 template.")
     parser.add_argument("--input", required=True, help="Path to the input .java.jinja2 template file.")
@@ -67,6 +71,7 @@ def main():
     env.globals['bitLeftShift'] = bitLeftShift
     env.globals['bitRightShift'] = bitRightShift
     env.globals['intDiv'] = intDiv
+    env.globals['capitalizeFirstLetter'] = capitalizeFirstLetter
 
     template = env.get_template(args.input)
     rendered_content = template.render(
@@ -80,6 +85,17 @@ def main():
             'Direction.WEST',
             'Direction.NORTHWEST',
             'Direction.CENTER'
+        ],
+        shortDirections=[
+            'N',
+            'NE',
+            'E',
+            'SE',
+            'S',
+            'SW',
+            'W',
+            'NW',
+            'C'
         ],
         prod=(args.prod == 'True')
     )
