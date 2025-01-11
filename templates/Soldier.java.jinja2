@@ -61,15 +61,22 @@ public class Soldier {
     }
 
     public static MapLocation seeRuin() throws GameActionException {
+        MapLocation best = null;
+        int closest = 100000000;
         for (int i = near.length; --i >= 0; ) {
             if (near[i].hasRuin()) {
-                RobotInfo r = rc.senseRobotAtLocation(near[i].getMapLocation());
+                MapLocation m = near[i].getMapLocation();
+                RobotInfo r = rc.senseRobotAtLocation(m);
                 if (r == null) {
-                    return near[i].getMapLocation();
+                    int d = m.distanceSquaredTo(rc.getLocation());
+                    if (d < closest) {
+                        closest = d;
+                        best = m;
+                    }
                 }
             }
         }
-        return null;
+        return best;
     }
 
     public static void makeTower() throws GameActionException {
