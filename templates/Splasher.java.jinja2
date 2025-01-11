@@ -1,24 +1,142 @@
+{% import 'helpers/Utils.java.jinja2' as utils %}
+
 package current;
 import battlecode.common.*;
 
 public class Splasher {
     public static RobotController rc;
+    public static MapLocation home = null;
+    public static MapLocation buildTower = null;
+    public static MapLocation myloc;
+    public static int paintCapacity = UnitType.SOLDIER.paintCapacity;
+    public static int myPaint;
+
     public static void init(RobotController rc) {
         Splasher.rc = rc;
     }
 
+    public static void setHome() throws GameActionException {
+        if (home != null) {
+            //if we can see it, it is not a paint tower, and it is empty - set to null
+            if (rc.canSenseLocation(home)) {
+                RobotInfo r = rc.senseRobotAtLocation(home);
+                if (r == null || r.paintAmount == 0) {
+                    home = null;
+                }
+            }
+
+        }
+        RobotInfo[] robots = rc.senseNearbyRobots();
+        RobotInfo robot;
+        loop: {
+        {% for i in range(70) %}
+            if ({{i}} >= robots.length) break loop;
+            robot = robots[{{i}}];
+            if (robot.team == rc.getTeam() && robot.paintAmount > 0 && Globals.isTower(robot.type)) {
+                home = robot.location;
+                break loop;
+            }
+        {% endfor %}
+        }
+    }
+
+    public static void refuel() throws GameActionException {
+        Pathing.pathTo(home);
+        if (rc.canSenseLocation(home)) {
+            RobotInfo r = rc.senseRobotAtLocation(home);
+            if (r == null) {
+                home = null;
+                return;
+            }
+            int amt = Math.max(myPaint - paintCapacity, -r.getPaintAmount());
+            if (rc.canTransferPaint(home, amt)) {
+                rc.transferPaint(home, amt);
+            }
+        }
+    }
+
     public static void run() throws GameActionException {
-        Direction dir = {{ directions[0] }};
-        MapLocation nextLoc = rc.getLocation().add(dir);
-        if (rc.canMove(dir)){
-            rc.move(dir);
+        initTurn();
+        runTurn();
+        postTurn();
+    }
+
+    public static void initTurn() throws GameActionException {
+        // We do this every turn in the event the tower got destroyed when the unit was created.
+        setHome();
+        myloc = rc.getLocation();
+        myPaint = rc.getPaint();
+    }
+    
+    public static void runTurn() throws GameActionException {
+        boolean shouldGoHome = (myPaint <= (paintCapacity >> 2));
+        if (shouldGoHome && home != null) {
+            rc.setIndicatorString("Refueling");
+            refuel();
+            return;
+        } else if (Attack.shouldSplasherMicro()) {
+            rc.setIndicatorString("Attacking");
+            Attack.splasherAttackMicro();
+            return;
+        } else if (shouldGoHome && home == null) {
+            rc.setIndicatorString("Exploring on Paint");
+            Explore.exploreOnPaint(null);
+            return;
+        } else {
+            Explore.explore(null);
         }
-        if (rc.canMopSwing(dir)){
-            rc.mopSwing(dir);
-            System.out.println("Mop Swing! Booyah!");
+    }
+
+    public static void postTurn() throws GameActionException {
+        doAttack();
+    }
+
+    public static void doAttack() throws GameActionException {
+        rc.setIndicatorString("Preparing to attack, but didn't");
+        if (!rc.isActionReady() || rc.getPaint() < (paintCapacity >> 2)) return;
+        rc.setIndicatorString("Running attack code...");
+        MapLocation myloc = rc.getLocation();
+        int x = myloc.x, y = myloc.y;
+        MapLocation bestLoc = null;
+        int count = 0, bestCount = -1;
+
+        {% for i in range(-3, 4, 1) %}
+        {% for j in range(-3, 4, 1) %}
+        MapLocation mloc{{i+3}}{{j+3}} = new MapLocation(x + {{ i }}, y + {{ j }});
+        PaintType mpaint{{i+3}}{{j+3}} = PaintType.ALLY_SECONDARY;
+        if (rc.canSenseLocation(mloc{{i+3}}{{j+3}})) {
+            MapInfo minfo{{i+3}}{{j+3}} = rc.senseMapInfo(mloc{{i+3}}{{j+3}});
+            if (!minfo{{i+3}}{{j+3}}.hasRuin() && !minfo{{i+3}}{{j+3}}.isWall()) {
+                mpaint{{i+3}}{{j+3}} = minfo{{i+3}}{{j+3}}.getPaint();
+            }
         }
-        else if (rc.canAttack(nextLoc)){
-            rc.attack(nextLoc);
+        {% endfor %}
+        {% endfor %}
+
+        {% for i in range(-2, 3, 1) %}
+        {% for j in range(-2, 3, 1) %}
+        if (rc.canAttack(mloc{{i+3}}{{j+3}})) {
+            count = 0;
+            {% for k in range(-1, 2, 1) %}
+            {% for l in range(-1, 2, 1) %} 
+            switch (mpaint{{i+k+3}}{{j+l+3}}) {
+                case EMPTY -> count += 1;
+                case ENEMY_PRIMARY, ENEMY_SECONDARY -> count += 2;
+                default -> {}
+            }
+            {% endfor %}
+            {% endfor %}
+            if (count > bestCount) {
+                bestLoc = mloc{{i+3}}{{j+3}};
+                bestCount = count;
+            }
+        }
+        {% endfor %}
+        {% endfor %}
+
+        {# rc.setIndicatorString("bestCount: " + bestCount + " " + bestLoc.x + " " + bestLoc.y); #}
+        if (bestCount > 5) {
+            rc.attack(bestLoc);
         }
     }
 }
