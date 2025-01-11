@@ -9,7 +9,7 @@ public class Pathing {
 
     public static boolean canPaint(MapInfo mi) throws GameActionException {
         if (rc.getType() == UnitType.SOLDIER) {
-            return (mi.getPaint() == PaintType.EMPTY && rc.getPaint() > 20);
+            return (mi.getPaint() == PaintType.EMPTY && rc.getPaint() >= 50);
         }
         if (rc.getType() == UnitType.MOPPER) {
             return (!mi.getPaint().isAlly() && mi.getPaint() != PaintType.EMPTY);
@@ -23,7 +23,7 @@ public class Pathing {
         if (rc.canMove(dir)){
             nextTile = rc.senseMapInfo(rc.getLocation().add(dir));
             if(canPaint(nextTile) && rc.canAttack(rc.getLocation().add(dir))){
-                rc.attack(rc.getLocation().add(dir));
+                rc.attack(rc.getLocation().add(dir), Soldier.shouldUseSecond(rc.getLocation().add(dir)));
             }
             rc.move(dir);
             return;
@@ -35,7 +35,7 @@ public class Pathing {
                 if (rc.canMove(le)) {
                     nextTile = rc.senseMapInfo(rc.getLocation().add(le));
                     if(canPaint(nextTile) && rc.canAttack(rc.getLocation().add(le))){
-                        rc.attack(rc.getLocation().add(le));
+                        rc.attack(rc.getLocation().add(le), Soldier.shouldUseSecond(rc.getLocation().add(le)));
                     }
                     rc.move(le);
                     break loop;
@@ -44,7 +44,7 @@ public class Pathing {
                 if (rc.canMove(ri)) {
                     nextTile = rc.senseMapInfo(rc.getLocation().add(ri));
                     if(canPaint(nextTile) && rc.canAttack(rc.getLocation().add(ri))){
-                        rc.attack(rc.getLocation().add(ri));
+                        rc.attack(rc.getLocation().add(ri), Soldier.shouldUseSecond(rc.getLocation().add(ri)));
                     }
                     rc.move(ri);
                     break loop;
