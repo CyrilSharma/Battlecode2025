@@ -132,6 +132,10 @@ public class Soldier {
         Pathing.pathTo(home);
         if (rc.canSenseLocation(home)) {
             RobotInfo r = rc.senseRobotAtLocation(home);
+            if (r == null) {
+                home = null;
+                return;
+            }
             int amt = Math.max(myPaint - paintCapacity, -r.getPaintAmount());
             if (rc.canTransferPaint(home, amt)) {
                 rc.transferPaint(home, amt);
@@ -406,10 +410,6 @@ public class Soldier {
             ruinLoc = seeRuin();
             if (ruinLoc != null) {
                 boolean incRuin = Globals.seeIncompleteRuin(ruinLoc);
-                if (rc.getID() == 13370 && rc.getRoundNum() < 50) {
-                    {% debug('incRuin', 'ruinLoc.x', 'ruinLoc.y') %}
-                }
-
                 if (incRuin){
                     buildTower = ruinLoc;
                 }

@@ -12,7 +12,9 @@ public class Tower {
     }
 
     public static UnitType getUnitType() throws GameActionException {
-        if (Globals.rng.nextInt(2) == 0 || rc.getMoney() < 1300) return UnitType.SOLDIER;
+        int round = rc.getRoundNum();
+        if ((round % 100) > 80 && rc.getMoney() > 4000) return UnitType.SPLASHER;
+        if ((round % 100) > 20 || rc.getMoney() < 1300) return UnitType.SOLDIER;
         return UnitType.MOPPER;
     }
 
@@ -27,11 +29,12 @@ public class Tower {
             if(rc.getPaint() < 200) return;
         }
 
+        UnitType t = getUnitType();
         loop: {
         {%- for direction in directions %}
             nextLoc = myloc.add({{ direction }});
-            if (rc.canBuildRobot(getUnitType(), nextLoc)) {
-                rc.buildRobot(getUnitType(), nextLoc);
+            if (rc.canBuildRobot(t, nextLoc)) {
+                rc.buildRobot(t, nextLoc);
                 break loop;
             }
         {% endfor -%}
@@ -39,6 +42,8 @@ public class Tower {
     }
 
     public static void towerTryAttack() throws GameActionException {
+        MapLocation bestSplasherLoc = null;
+        int smallestSplasherHealth = 100000000;
         MapLocation bestSoldierLoc = null;
         int smallestSoldierHealth = 100000000;
         MapLocation bestNonSoldierLoc = null;
@@ -49,6 +54,12 @@ public class Tower {
             MapLocation loc = enemy.location;
             if (rc.canAttack(loc)) {
                 switch (enemy.type) {
+                    case SPLASHER -> {
+                        if (enemy.health < smallestSplasherHealth) {
+                            bestSplasherLoc = loc;
+                            smallestSplasherHealth = enemy.health;
+                        }
+                    }
                     case SOLDIER -> {
                         if (enemy.health < smallestSoldierHealth) {
                             bestSoldierLoc = loc;
@@ -66,7 +77,11 @@ public class Tower {
             }
         }
 
-        if (bestSoldierLoc != null) {
+        if (bestSplasherLoc != null) {
+            rc.setIndicatorString("Attacking Splasher!");
+            rc.setIndicatorDot(bestSplasherLoc, 0, 0, 0);
+            rc.attack(bestSplasherLoc);
+        }  else if (bestSoldierLoc != null) {
             rc.setIndicatorString("Attacking Soldier!");
             rc.setIndicatorDot(bestSoldierLoc, 0, 0, 0);
             rc.attack(bestSoldierLoc);
