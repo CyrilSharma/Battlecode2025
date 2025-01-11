@@ -15,6 +15,7 @@ public class TileLoader {
     public static long seen{{ i }} = 0;
     public static long wall{{ i }} = 0;
     public static long ruin{{ i }} = 0;
+    public static long visited{{ i }} = 0;
 
     public static long seen_reversed{{ i }} = 0;
     public static long wall_reversed{{ i }} = 0;
@@ -38,6 +39,19 @@ public class TileLoader {
     public static void load() throws GameActionException {
         loadRuins();
         loadWalls();
+        markVisited();
+    }
+
+    public static void markVisited() throws GameActionException {
+        MapLocation m = rc.getLocation();
+        switch (m.y) {
+            {% for y in range(0, 60) -%}
+            case {{ y }} -> {
+                visited{{ y }} |= 1L << m.x;
+                return;
+            }
+            {% endfor -%}
+        } 
     }
 
     public static void loadRuins() throws GameActionException {

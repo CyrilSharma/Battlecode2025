@@ -2,6 +2,8 @@
 
 package current;
 import battlecode.common.*;
+import java.util.ArrayList;
+import java.util.Collections;
 
 public class Soldier {
     public static RobotController rc;
@@ -15,13 +17,90 @@ public class Soldier {
     public static MapLocation ruinLoc;
     public static MapLocation markedResource = null;
     public static boolean[][] resourcePat = null;
+    public static int evenChunkDx[] = {0, 4, -4, 1, 1};
+    public static int evenChunkDy[] = {0, 0, 0, 3, -3};
+    public static int oddChunkDx[] = {0, 4, -4, -1, -1};
+    public static int oddChunkDy[] = {0, 0, 0, 3, -3};
+    public static MapLocation chunkGoal = null;
 
     public static void init(RobotController rc) {
         Soldier.rc = rc;
     }
 
+    public static MapLocation getLowerCenter(MapLocation m) {
+        int a = (m.y - 2) / 3;
+        int cy = 3 * a + 2, cx;
+        if (a % 2 == 0) {
+            int b = (m.x - 2) / 4;
+            cx = 2 + b * 4;
+        }
+        else {
+            int b = (m.x - 3) / 4;
+            cx = 3 + b * 4;
+        }
+        if (m.x - cx > 2) cx += 4;
+        return new MapLocation(cx, cy);
+    }
+
+    public static boolean useOdd(MapLocation m) {
+        return (((m.y - 2) / 3) & 1) == 1;
+    }
+
+    public static boolean shouldUseSecond(MapLocation m) {
+        MapLocation c = getLowerCenter(m);
+        int dx = m.x - c.x, dy = m.y - c.y;
+        if(dx == 0 && dy == 0) return false;
+        else return ((Math.abs(dx) & 1) == (Math.abs(dy) & 1));
+    }
+
+    public static boolean okToTile(MapLocation m) throws GameActionException {
+        if (rc.getNumberTowers() == 25) return true;
+        MapInfo mCur = rc.senseMapInfo(m);
+        boolean b = shouldUseSecond(m);
+        if (mCur.getPaint().isAlly()) {
+            if (b == (mCur.getPaint() == PaintType.ALLY_SECONDARY)) {
+                return false;
+            }
+        }
+        for (int i = 3; --i >= -2; ){
+            for (int j = 3; --j >= -2; ){
+                if (i == 0 && j == 0) continue;
+                MapLocation tmp = new MapLocation(m.x + i, m.y + j);
+                if (rc.canSenseLocation(tmp)) {
+                    MapInfo mi = rc.senseMapInfo(tmp);
+                    if (mi.hasRuin()) {
+                        RobotInfo r = rc.senseRobotAtLocation(tmp);
+                        if (r == null) return false;
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
+    public static void checkMoneyPatterns() throws GameActionException {
+        MapLocation h;
+        MapLocation g = getLowerCenter(rc.getLocation());
+        for (int i = 5; --i >= 0;) {
+            if(useOdd(g)) h = new MapLocation(g.x + oddChunkDx[i], g.y + oddChunkDy[i]);
+            else h = new MapLocation(g.x + evenChunkDx[i], g.y + evenChunkDy[i]); 
+            if (rc.canCompleteResourcePattern(h)) {
+                rc.completeResourcePattern(h);
+                if (rc.canMark(h)) {
+                    rc.mark(h, false);
+                }
+            }
+        }
+    }
+
     public static boolean canChangeColor(MapInfo mi) throws GameActionException {
         return (mi.getPaint().isAlly() || mi.getPaint() == PaintType.EMPTY);
+    }
+
+    public static boolean canChangeColor(MapLocation m) throws GameActionException {
+        if (!rc.canSenseLocation(m)) return false;
+        MapInfo mi = rc.senseMapInfo(m);
+        return canChangeColor(mi);
     }
 
     public static void setHome() throws GameActionException {
@@ -135,20 +214,77 @@ public class Soldier {
         }
     }
 
-    public static boolean isBuilt(MapLocation ruinLoc) throws GameActionException {
-        if (rc.canSenseLocation(ruinLoc)) {
-            RobotInfo r = rc.senseRobotAtLocation(ruinLoc);
-            return (r != null);
-        }
+    public static boolean visited(MapLocation m) throws GameActionException {
+       switch (m.y) {
+            {% for y in range(0, 60) -%}
+            case {{ y }} -> {
+                return ((TileLoader.visited{{ y }} >> m.x) & 1) == 1;
+            }
+            {% endfor -%}
+        } 
         return false;
     }
 
+    public static boolean shouldVisit(MapLocation m) throws GameActionException {
+        if (!rc.canSenseLocation(m)) return false;
+        boolean ok = false;
+        for (int i = 2; --i >= -1;) {
+            for (int j = 2; --j >= -1;) {
+                MapLocation cur = new MapLocation(m.x + i, m.y + j);
+                if (rc.canSenseLocation(cur)) {
+                    MapInfo mi = rc.senseMapInfo(cur);
+                    if (mi.getMark() != PaintType.EMPTY) return false;
+                    if (!mi.isPassable()) return false;
+                    if (mi.getPaint() == PaintType.EMPTY) ok = true;
+                    else if (!mi.getPaint().isAlly()) return false;
+                    boolean b = shouldUseSecond(cur);
+                    if (b != (mi.getPaint() == PaintType.ALLY_SECONDARY)) {
+                        ok = true;
+                    }
+                    if (cur == rc.getLocation()) continue;
+                    RobotInfo r = rc.senseRobotAtLocation(cur);
+                    if (r != null && r.getTeam() == rc.getTeam() && r.getType() == UnitType.SOLDIER) return false;
+                }
+            }
+        }
+        return (!visited(m) && ok); 
+    }
+
     public static void moneyPattern() throws GameActionException {
-        //make sure we see no ruins
-        //and make sure nothing in the 5 by 5 is marked
+        if (markedResource != null) return;
         if (ruinLoc != null && rc.getNumberTowers() < 25) return;
-        if (rc.getPaint() < 20) return;
-        if (rc.getNumberTowers() < 4) return;
+        if (rc.getPaint() < 50) return;
+
+        if (chunkGoal == null) {
+            int dist = 1000000000;
+            MapLocation g = getLowerCenter(rc.getLocation());
+            MapLocation h;
+            ArrayList<Integer> p = new ArrayList<>();
+            for (int i = 0; i <= 4; i++) p.add(i);
+            Collections.shuffle(p);
+            for (int i = 5; --i >= 0;) {
+                if (useOdd(g)) h = new MapLocation(g.x + oddChunkDx[p.get(i)], g.y + oddChunkDy[p.get(i)]);
+                else h = new MapLocation(g.x + evenChunkDx[p.get(i)], g.y + evenChunkDy[p.get(i)]);
+                if (shouldVisit(h)) {
+                    int d = rc.getLocation().distanceSquaredTo(h);
+                    if (d < dist) {
+                        dist = d;
+                        chunkGoal = h;
+                    }
+                }
+            }
+        }
+
+        if (chunkGoal != null) {
+            if (!rc.getLocation().equals(chunkGoal)) {
+                Pathing.pathTo(chunkGoal);
+            }
+        }
+        else return;
+
+        MapLocation c = getLowerCenter(rc.getLocation());
+        if (!c.equals(rc.getLocation())) return;
+
         boolean bad = false;
         for (int i = 3; --i >= -2; ){
             if (bad) break;
@@ -162,6 +298,15 @@ public class Soldier {
                             break;
                         }
                     }
+                    if (!mi.isPassable()) {
+                        bad = true;
+                        break;
+                    }
+                    RobotInfo r = rc.senseRobotAtLocation(tmp);
+                    if (r != null && Globals.isTower(r.getType())) {
+                        bad = true;
+                        break;
+                    }
                 }
                 else {
                     bad = true;
@@ -172,37 +317,13 @@ public class Soldier {
         if (!bad) {
             //i think this check can probably be removed...
             if (rc.canMarkResourcePattern(rc.getLocation())) {
-                rc.markResourcePattern(rc.getLocation());
                 markedResource = rc.getLocation();
+                chunkGoal = null;
             }
         }
-    }
-
-    public static boolean paintMarkedSquares() throws GameActionException {
-        if (rc.getPaint() < 20) return false;
-        MapLocation goal = null;
-        int bestDist = 1000000000;
-        boolean secondCol = false;
-        for (int i = near.length; --i >= 0; ) {
-            if (near[i].getMark() != PaintType.EMPTY && near[i].getMark() != near[i].getPaint() && canChangeColor(near[i])) {
-                int d = rc.getLocation().distanceSquaredTo(near[i].getMapLocation());
-                if (d < bestDist) {
-                    bestDist = d;
-                    goal = near[i].getMapLocation();
-                    secondCol = (near[i].getMark() == PaintType.ALLY_SECONDARY);
-                }
-            }
+        else {
+            chunkGoal = null;
         }
-        if (goal != null) {
-            if (rc.canAttack(goal)) {
-                rc.attack(goal, secondCol);
-            }
-            else {
-                Pathing.pathTo(goal);
-            }
-            return true;
-        }
-        return false;
     }
 
     public static void makeResourcePatch() throws GameActionException {
@@ -216,12 +337,18 @@ public class Soldier {
                 MapLocation tmp = new MapLocation(markedResource.x + i, markedResource.y + j);
                 if (rc.canSenseLocation(tmp)) {
                     MapInfo mi = rc.senseMapInfo(tmp);
-                    if (mi.getMark() != mi.getPaint() && mi.getMark() != PaintType.EMPTY && canChangeColor(mi)) {
+                    if (canChangeColor(mi)) {
+                        boolean b = shouldUseSecond(tmp);
+                        if (mi.getPaint().isAlly()) {
+                            if (b == (mi.getPaint() == PaintType.ALLY_SECONDARY)) {
+                                continue;
+                            }
+                        }
                         int d = rc.getLocation().distanceSquaredTo(tmp);
                         if (d < bestDist) {
                             bestDist = d;
                             goal = tmp;
-                            secondCol = (mi.getMark() == PaintType.ALLY_SECONDARY);
+                            secondCol = b;
                         }
                     }
                 }
@@ -231,12 +358,19 @@ public class Soldier {
             if (rc.canAttack(goal)) {
                 rc.attack(goal, secondCol);
             }
+            if (rc.canCompleteResourcePattern(markedResource)) {
+                rc.completeResourcePattern(markedResource);
+                markedResource = null;
+            }
         }
-        if (rc.canCompleteResourcePattern(markedResource)) {
-            rc.completeResourcePattern(markedResource);
+        else {
+            if (rc.canCompleteResourcePattern(markedResource)) {
+                rc.completeResourcePattern(markedResource);
+            }
             markedResource = null;
         }
     }
+
 
     public static void run() throws GameActionException {
         initTurn();
@@ -290,6 +424,8 @@ public class Soldier {
                 }
             }
         }
+
+        moneyPattern();
         
         if (markedResource != null) {
             rc.setIndicatorString("Patching Resource");
@@ -297,19 +433,16 @@ public class Soldier {
             return;
         }
 
-        rc.setIndicatorString("Money Pattern");
-        moneyPattern();
-        if (!paintMarkedSquares()) {
-            Explore.explore(near);
-        }
+
+        Explore.explore(near);
         
     }
 
     public static void postTurn() throws GameActionException {
+
         // Lay paint where I am first.
-        MapInfo currentTile = rc.senseMapInfo(myloc);
-        if (!currentTile.getPaint().isAlly() && rc.canAttack(myloc)){
-            rc.attack(myloc);
+        if (canChangeColor(myloc) && rc.canAttack(myloc) && okToTile(myloc) && rc.getPaint() >= 50){
+            rc.attack(myloc, shouldUseSecond(myloc));
         }
 
         if (buildTower != null) {
@@ -320,5 +453,6 @@ public class Soldier {
                 rc.completeTowerPattern(UnitType.LEVEL_ONE_MONEY_TOWER, buildTower);
             }
         }
+        checkMoneyPatterns();
     }
 }
