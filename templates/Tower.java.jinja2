@@ -12,10 +12,22 @@ public class Tower {
     }
 
     public static UnitType getUnitType() throws GameActionException {
+        int money = rc.getMoney();
         int round = rc.getRoundNum();
-        if ((round % 100) > 80 && rc.getMoney() > 4000) return UnitType.SPLASHER;
-        if ((round % 100) > 20 || rc.getMoney() < 1300) return UnitType.SOLDIER;
-        return UnitType.MOPPER;
+        if (round < 5) {
+            if (rc.getMoney() <= GameConstants.INITIAL_TEAM_MONEY) {
+                return UnitType.SOLDIER;
+            } else {
+                return UnitType.MOPPER;
+            }
+        } else if (money < 2000) {
+            if ((round % 50) <= 40) return UnitType.SOLDIER;
+            else return UnitType.MOPPER;
+        } else {
+            if ((round % 50) > 25) return UnitType.SPLASHER;
+            else return UnitType.SOLDIER;
+        }
+        //return UnitType.SOLDIER;
     }
 
     public static void run() throws GameActionException {
