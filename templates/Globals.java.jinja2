@@ -16,4 +16,55 @@ public class Globals {
         friends = rc.senseNearbyRobots(-1, rc.getTeam());
         enemies = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
     }
+
+    public static boolean seeIncompleteRuin(MapLocation ruin) throws GameActionException {
+        MapLocation tmp;
+        UnitType t = getTowerToBuild();
+        boolean[][] pattern = rc.getTowerPattern(t);
+        {% for i in range(2, -3, -1) %}
+        {% for j in range(2, -3, -1) %}
+        {% if i != 0 or j != 0 %}
+        tmp = new MapLocation(ruin.x + {{i}}, ruin.y + {{j}});
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            switch (mi.getPaint()) {
+                case ENEMY_SECONDARY, ENEMY_PRIMARY -> {}
+                default -> {
+                    boolean isSecondary = (mi.getPaint() == PaintType.ALLY_SECONDARY);
+                    boolean targetSecondary = pattern[{{i + 2}}][{{j + 2}}];
+                    if ((mi.getPaint() == PaintType.EMPTY) || (isSecondary != targetSecondary)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        {% endif %}
+        {% endfor %}
+        {% endfor %}
+        return false;
+    }
+
+    public static UnitType getTowerToBuild() throws GameActionException {
+        // return UnitType.LEVEL_ONE_MONEY_TOWER;
+        int sz = Math.max(rc.getMapWidth(), rc.getMapHeight());
+        int firstPaint = 0;
+        if (sz < 900) {
+            firstPaint = 3;
+        } else if (sz < 1800) {
+            firstPaint = 4;
+        } else {
+            firstPaint = 5;
+        }
+        if (rc.getMoney() < 2000 && rc.getNumberTowers() != firstPaint) return UnitType.LEVEL_ONE_MONEY_TOWER;
+        return UnitType.LEVEL_ONE_PAINT_TOWER;
+    }
+
+    public static boolean isTower(UnitType u) {
+        return switch (u) {
+            case SOLDIER -> false;
+            case SPLASHER -> false;
+            case MOPPER -> false;
+            default -> true;
+        };
+    }
 }
