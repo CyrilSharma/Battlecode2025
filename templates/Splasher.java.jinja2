@@ -5,54 +5,14 @@ import battlecode.common.*;
 
 public class Splasher {
     public static RobotController rc;
-    public static MapLocation home = null;
     public static MapLocation buildTower = null;
     public static MapLocation myloc;
     public static int paintCapacity = UnitType.SOLDIER.paintCapacity;
     public static int myPaint;
+    public static boolean shouldGoHome = false;
 
     public static void init(RobotController rc) {
         Splasher.rc = rc;
-    }
-
-    public static void setHome() throws GameActionException {
-        if (home != null) {
-            //if we can see it, it is not a paint tower, and it is empty - set to null
-            if (rc.canSenseLocation(home)) {
-                RobotInfo r = rc.senseRobotAtLocation(home);
-                if (r == null || r.paintAmount == 0) {
-                    home = null;
-                }
-            }
-
-        }
-        RobotInfo[] robots = rc.senseNearbyRobots();
-        RobotInfo robot;
-        loop: {
-        {% for i in range(70) %}
-            if ({{i}} >= robots.length) break loop;
-            robot = robots[{{i}}];
-            if (robot.team == rc.getTeam() && robot.paintAmount > 0 && Globals.isTower(robot.type)) {
-                home = robot.location;
-                break loop;
-            }
-        {% endfor %}
-        }
-    }
-
-    public static void refuel() throws GameActionException {
-        Pathing.pathTo(home);
-        if (rc.canSenseLocation(home)) {
-            RobotInfo r = rc.senseRobotAtLocation(home);
-            if (r == null) {
-                home = null;
-                return;
-            }
-            int amt = Math.max(myPaint - paintCapacity, -r.getPaintAmount());
-            if (rc.canTransferPaint(home, amt)) {
-                rc.transferPaint(home, amt);
-            }
-        }
     }
 
     public static void run() throws GameActionException {
@@ -62,25 +22,25 @@ public class Splasher {
     }
 
     public static void initTurn() throws GameActionException {
-        // We do this every turn in the event the tower got destroyed when the unit was created.
-        setHome();
         myloc = rc.getLocation();
         myPaint = rc.getPaint();
+
+        RefuelManager.setHome();
+        boolean lowHealth = (myPaint <= (paintCapacity >> 2));
+        if (lowHealth != shouldGoHome) {
+            shouldGoHome = lowHealth;
+            RefuelManager.reset();
+        }
     }
     
     public static void runTurn() throws GameActionException {
-        boolean shouldGoHome = (myPaint <= (paintCapacity >> 2));
-        if (shouldGoHome && home != null) {
+        if (shouldGoHome) {
             rc.setIndicatorString("Refueling");
-            refuel();
+            RefuelManager.refuel();
             return;
         } else if (Attack.shouldSplasherMicro()) {
             rc.setIndicatorString("Attacking");
             Attack.splasherAttackMicro();
-            return;
-        } else if (shouldGoHome && home == null) {
-            rc.setIndicatorString("Exploring on Paint");
-            Explore.exploreOnPaint(null);
             return;
         } else {
             Explore.explore(null);

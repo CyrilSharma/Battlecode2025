@@ -5,7 +5,6 @@ import battlecode.common.*;
 
 public class Mopper {
     public static RobotController rc;
-    public static MapLocation home = null;
     public static MapLocation buildTower = null;
     public static MapLocation myloc;
     public static int paintCapacity = UnitType.SOLDIER.paintCapacity;
@@ -14,6 +13,7 @@ public class Mopper {
     public static MapInfo[] near;
     public static MapLocation ruinLoc;
     public static boolean[][] resourcePat = null;
+    public static boolean shouldGoHome = false;
 
     public static void init(RobotController rc) {
         Mopper.rc = rc;
@@ -21,42 +21,6 @@ public class Mopper {
 
     public static boolean canMop(MapInfo mi) throws GameActionException {
         return (!mi.getPaint().isAlly() && mi.getPaint() != PaintType.EMPTY);
-    }
-
-    public static void setHome() throws GameActionException {
-        if (home != null) {
-            //if we can see it, it is not a paint tower, and it is empty - set to null
-            if (rc.canSenseLocation(home)) {
-                RobotInfo r = rc.senseRobotAtLocation(home);
-                if (r == null || r.paintAmount == 0) {
-                    home = null;
-                }
-            }
-
-        }
-        RobotInfo[] robots = rc.senseNearbyRobots();
-        RobotInfo robot;
-        loop: {
-        {% for i in range(70) %}
-            if ({{i}} >= robots.length) break loop;
-            robot = robots[{{i}}];
-            if (robot.team == rc.getTeam() && robot.paintAmount > 0 && Globals.isTower(robot.type)) {
-                home = robot.location;
-                break loop;
-            }
-        {% endfor %}
-        }
-    }
-
-    public static void refuel() throws GameActionException {
-        Pathing.pathTo(home);
-        if (rc.canSenseLocation(home)) {
-            RobotInfo r = rc.senseRobotAtLocation(home);
-            int amt = Math.max(myPaint - paintCapacity, -r.getPaintAmount());
-            if (rc.canTransferPaint(home, amt)) {
-                rc.transferPaint(home, amt);
-            }
-        }
     }
 
     public static MapLocation seeRuin() throws GameActionException {
@@ -70,8 +34,6 @@ public class Mopper {
         }
         return null;
     }
-
-    
 
     public static void makeTower() throws GameActionException {
         assert(buildTower != null);
@@ -169,17 +131,21 @@ public class Mopper {
 
     public static void run() throws GameActionException {
         near = rc.senseNearbyMapInfos();
-        // We do this every turn in the event the tower got destroyed when the unit was created.
-        setHome();
         if (resourcePat == null) resourcePat = rc.getResourcePattern();
+
+        RefuelManager.setHome();
+        boolean lowHealth = (myPaint <= (paintCapacity >> 2));
+        if (lowHealth != shouldGoHome) {
+            shouldGoHome = lowHealth;
+            RefuelManager.reset();
+        }
 
         myloc = rc.getLocation();
         myPaint = rc.getPaint();
 
-        boolean shouldGoHome = myPaint <= (paintCapacity >> 2);
-        if (shouldGoHome && home != null) { 
+        if (shouldGoHome) { 
             rc.setIndicatorString("Refueling");
-            refuel();
+            RefuelManager.refuel();
             return;
         }
         else if (Attack.shouldMopperMicro()) {
@@ -187,11 +153,7 @@ public class Mopper {
             Attack.mopperAttackMicro();
             return;
         }
-        else if (shouldGoHome && home == null /* :/ */) {
-            rc.setIndicatorString("Exploring");
-            Explore.exploreOnPaint(near);
-            return;
-        } else if (rc.getNumberTowers() < 25){
+        else if (rc.getNumberTowers() < 25){
             buildTower = null;
             ruinLoc = seeRuin();
             if (ruinLoc != null) {
