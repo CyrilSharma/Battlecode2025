@@ -51,10 +51,11 @@ public class RefuelManager {
             Explore.explore(null);
             return;
         }
-        if (rc.getLocation().distanceSquaredTo(home) <= 9) reachedHome = true;
+        int dist = rc.getLocation().distanceSquaredTo(home);
+        if (dist <= 9) reachedHome = true;
         if (!reachedHome) {
             Pathing.pathTo(home);
-        } else if (reachedHome && homeState == TOWER_PAINT) {
+        } else if (dist <= 9 && homeState == TOWER_PAINT) {
             Pathing.pathTo(home);
             RobotInfo r = rc.senseRobotAtLocation(home);
             if (r == null) { 

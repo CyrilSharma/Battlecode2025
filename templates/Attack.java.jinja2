@@ -4,7 +4,7 @@ import battlecode.common.*;
 public class Attack {
     public static RobotController rc;
 
-    {% set copiedAttributes = ['actionRadiusSquared', 'paintCapacity', 'actionCooldown', 'attackStrength']%}
+    {% set copiedAttributes = ['actionRadiusSquared', 'paintCapacity', 'actionCooldown', 'attackStrength', 'aoeAttackStrength']%}
     {% for unit in ['soldier', 'splasher', 'mopper'] -%}
     {% for attribute in copiedAttributes -%}
     public static int {{unit}}{{capitalizeFirstLetter(attribute)}};
@@ -232,7 +232,11 @@ public class Attack {
                 'LEVEL_TWO_DEFENSE_TOWER', 'LEVEL_TWO_MONEY_TOWER', 'LEVEL_TWO_PAINT_TOWER'] -%}
             case {{tower}}: {
                 if (actionReady && d <= {{type}}ActionRadiusSquared) {
+                    {% if type == 'splasher' %}
+                    myHealthDmg_{{dir}} = {{type}}AoeAttackStrength;
+                    {% else %}
                     myHealthDmg_{{dir}} = {{type}}AttackStrength;
+                    {% endif %}
                 }
                 if (d <= UnitType.{{tower}}.actionRadiusSquared) {
                     // Should have another one for AOE damage.
