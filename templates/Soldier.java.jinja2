@@ -7,7 +7,7 @@ import java.util.Collections;
 
 public class Soldier {
     public static RobotController rc;
-    public static MapLocation home = null;
+    public static boolean homeHasPaint = false;
     public static MapLocation buildTower = null;
     public static MapLocation myloc;
     public static int paintCapacity = UnitType.SOLDIER.paintCapacity;
@@ -17,6 +17,8 @@ public class Soldier {
     public static MapLocation ruinLoc;
     public static MapLocation markedResource = null;
     public static boolean[][] resourcePat = null;
+    public static boolean shouldGoHome = false;
+
     public static int evenChunkDx[] = {0, 4, -4, 1, 1};
     public static int evenChunkDy[] = {0, 0, 0, 3, -3};
     public static int oddChunkDx[] = {0, 4, -4, -1, -1};
@@ -25,6 +27,7 @@ public class Soldier {
 
     public static void init(RobotController rc) {
         Soldier.rc = rc;
+        resourcePat = rc.getResourcePattern();
     }
 
     public static MapLocation getLowerCenter(MapLocation m) {
@@ -101,46 +104,6 @@ public class Soldier {
         if (!rc.canSenseLocation(m)) return false;
         MapInfo mi = rc.senseMapInfo(m);
         return canChangeColor(mi);
-    }
-
-    public static void setHome() throws GameActionException {
-        if (home != null) {
-            //if we can see it, it is not a paint tower, and it is empty - set to null
-            if (rc.canSenseLocation(home)) {
-                RobotInfo r = rc.senseRobotAtLocation(home);
-                if (r == null || r.paintAmount == 0) {
-                    home = null;
-                }
-            }
-
-        }
-        RobotInfo[] robots = rc.senseNearbyRobots();
-        RobotInfo robot;
-        loop: {
-        {% for i in range(70) %}
-            if ({{i}} >= robots.length) break loop;
-            robot = robots[{{i}}];
-            if (robot.team == rc.getTeam() && robot.paintAmount > 0 && Globals.isTower(robot.type)) {
-                home = robot.location;
-                break loop;
-            }
-        {% endfor %}
-        }
-    }
-
-    public static void refuel() throws GameActionException {
-        Pathing.pathTo(home);
-        if (rc.canSenseLocation(home)) {
-            RobotInfo r = rc.senseRobotAtLocation(home);
-            if (r == null) {
-                home = null;
-                return;
-            }
-            int amt = Math.max(myPaint - paintCapacity, -r.getPaintAmount());
-            if (rc.canTransferPaint(home, amt)) {
-                rc.transferPaint(home, amt);
-            }
-        }
     }
 
     public static MapLocation seeRuin() throws GameActionException {
@@ -384,26 +347,25 @@ public class Soldier {
 
     public static void initTurn() throws GameActionException {
         near = rc.senseNearbyMapInfos();
-        // We do this every turn in the event the tower got destroyed when the unit was created.
-        setHome();
-        if (resourcePat == null) resourcePat = rc.getResourcePattern();
         myloc = rc.getLocation();
         myPaint = rc.getPaint();
+
+        RefuelManager.setHome();
+        boolean lowHealth = (myPaint <= (paintCapacity >> 2));
+        if (lowHealth != shouldGoHome) {
+            shouldGoHome = lowHealth;
+            RefuelManager.reset();
+        }
     }
     
     public static void runTurn() throws GameActionException {
-        boolean shouldGoHome = (myPaint <= (paintCapacity >> 2));
-        if (shouldGoHome && home != null) {
+        if (shouldGoHome) {
             rc.setIndicatorString("Refueling");
-            refuel();
+            RefuelManager.refuel();
             return;
         } else if (Attack.shouldSoldierMicro()) {
             rc.setIndicatorString("Attacking");
             Attack.soldierAttackMicro();
-            return;
-        } else if (shouldGoHome && home == null) {
-            rc.setIndicatorString("Exploring on Paint");
-            Explore.exploreOnPaint(near);
             return;
         } else if (rc.getNumberTowers() < 25 && markedResource == null) {
             buildTower = null;
@@ -431,11 +393,10 @@ public class Soldier {
             rc.setIndicatorString("Patching Resource");
             makeResourcePatch();
             return;
-        }
-
-
-        Explore.explore(near);
-        
+        } else {
+            Explore.explore(near);
+            return;
+        }        
     }
 
     public static void postTurn() throws GameActionException {

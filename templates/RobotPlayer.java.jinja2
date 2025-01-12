@@ -14,6 +14,7 @@ public class RobotPlayer {
         SymmetryChecker.init(rc);
         Attack.init(rc);
         Explore.init(rc);
+        RefuelManager.init(rc);
         {%- macro generate_main_loop(classname) -%}
                 while (true) {
                     try {
