@@ -427,7 +427,6 @@ public class Soldier {
         }
 
         if (buildTower != null) {
-            rc.setIndicatorString("Attempting to complete tower!");
             if (rc.canCompleteTowerPattern(UnitType.LEVEL_ONE_PAINT_TOWER, buildTower)) {
                 rc.completeTowerPattern(UnitType.LEVEL_ONE_PAINT_TOWER, buildTower);
             }
