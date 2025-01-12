@@ -1,0 +1,77 @@
+package current;
+import java.util.Random;
+import battlecode.common.*;
+
+public class RefuelManager {    
+    public static RobotController rc;
+    public static int homeState;
+    public static MapLocation home = null;
+    public static boolean reachedHome = false;
+
+    public static void init(RobotController rc) {
+        RefuelManager.rc = rc;
+    }
+    
+    public static final int TOWER_RUIN = 0;
+    public static final int TOWER_NOT_PAINT = 1;
+    public static final int TOWER_PAINT = 2;
+    public static int getTowerState(RobotInfo robot) {
+        if (robot == null) return TOWER_RUIN;
+        else {
+            switch (robot.type) {
+                case LEVEL_ONE_PAINT_TOWER, LEVEL_TWO_PAINT_TOWER, LEVEL_THREE_PAINT_TOWER:
+                    return TOWER_PAINT;
+                default: {
+                    if (robot.paintAmount != 0) return TOWER_PAINT;
+                    else return TOWER_NOT_PAINT;
+                }
+            }
+        }
+    }
+   
+    public static void setHome() throws GameActionException {
+        if (home != null && rc.canSenseLocation(home)) {
+             RobotInfo robot = rc.senseRobotAtLocation(home);
+             homeState = getTowerState(robot);
+        }
+        MapLocation[] ruins = rc.senseNearbyRuins(-1);
+        for (MapLocation ruin: ruins) {
+            RobotInfo robot = rc.senseRobotAtLocation(ruin);
+            int towerState = getTowerState(robot);
+            if (towerState >= homeState) {
+                home = ruin;
+                homeState = towerState;
+                break;
+            }
+        }
+    }
+
+    public static void refuel() throws GameActionException {
+        if (homeState != TOWER_PAINT) {
+            Explore.explore(null);
+            return;
+        }
+        if (rc.getLocation().distanceSquaredTo(home) <= 9) reachedHome = true;
+        if (!reachedHome) {
+            Pathing.pathTo(home);
+        } else if (reachedHome && homeState == TOWER_PAINT) {
+            Pathing.pathTo(home);
+            RobotInfo r = rc.senseRobotAtLocation(home);
+            if (r == null) { 
+                homeState = getTowerState(r);
+                return;
+            }
+            int amt = Math.max(rc.getPaint() - rc.getType().paintCapacity, -r.getPaintAmount());
+            if (rc.canTransferPaint(home, amt)) {
+                rc.transferPaint(home, amt);
+            }
+        }
+        {# else if (reachedHome && homeState != TOWER_PAINT) {
+            Explore.explore(null);
+        } #}
+    }
+
+    public static void reset() throws GameActionException {
+        reachedHome = false;
+    }
+}
