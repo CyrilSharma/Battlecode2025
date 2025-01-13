@@ -226,11 +226,11 @@ public class Attack {
     PaintType paint_{{suffix}} = PaintType.ENEMY_PRIMARY;
     if (rc.canSenseLocation(targetLoc_{{suffix}})) {
         paint_{{suffix}} = rc.senseMapInfo(targetLoc_{{suffix}}).getPaint();
-        switch (rc.senseMapInfo(targetLoc_{{suffix}}).getPaint()) {
+        {# switch (rc.senseMapInfo(targetLoc_{{suffix}}).getPaint()) {
              case PaintType.ENEMY_PRIMARY -> canMove_{{suffix}} = false;
              case PaintType.ENEMY_SECONDARY -> canMove_{{suffix}} = false;
              default -> {}
-        }
+        } #}
     }
     double healthDmgAttackRange_{{suffix}} = 0;
     double myHealthDmg_{{suffix}} = 0;
