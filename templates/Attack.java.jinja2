@@ -77,53 +77,14 @@ public class Attack {
     public static boolean shouldMopperMicro() throws GameActionException {
         for (int i = Globals.enemies.length; --i >= 0; ) {
             switch (Globals.enemies[i].type) {
-                case SOLDIER, MOPPER, SPLASHER: {
-                    if (Globals.enemies[i].paintAmount != 0) return true;
-                };
-                default: continue;
+                case SOLDIER, MOPPER, SPLASHER: continue;
+                default: return true;
             }
         }
         return false;
     }
 
-    public static void mopperTryAttack() throws GameActionException {
-        MapLocation bestThreatLoc = null;
-        int smallestThreatPaint = 100000000;
-        MapLocation bestNonThreatLoc = null;
-        int smallestNonThreatPaint = 100000000;
-        for (int i = Globals.enemies.length; --i >= 0;) {
-            RobotInfo enemy = Globals.enemies[i];
-            if (enemy.paintAmount == 0) continue;
-            MapLocation loc = enemy.location;
-            switch (enemy.type) {
-                case MOPPER, SPLASHER -> {
-                    if (rc.canAttack(loc) && enemy.paintAmount < smallestThreatPaint) {
-                        bestThreatLoc = loc;
-                        smallestThreatPaint = enemy.paintAmount;
-                    }
-                }
-                case SOLDIER -> {
-                    if (rc.canAttack(loc) && enemy.paintAmount < smallestNonThreatPaint) {
-                        bestNonThreatLoc = loc;
-                        smallestNonThreatPaint = enemy.paintAmount;
-                    }
-                }
-                default -> {}
-            }
-        }
-
-        if (bestThreatLoc != null) {
-            rc.setIndicatorString("Attacking Threat!");
-            rc.setIndicatorDot(bestThreatLoc, 0, 0, 0);
-            rc.attack(bestThreatLoc);
-        } else if (bestNonThreatLoc != null) {
-            rc.setIndicatorString("Attacking Normal!");
-            rc.setIndicatorDot(bestNonThreatLoc, 0, 0, 0);
-            rc.attack(bestNonThreatLoc);
-        } else {
-            rc.setIndicatorString("Didn't Attack!");
-        }
-    }
+    public static void mopperTryAttack() throws GameActionException {}
     
     {% macro attackMicro(type) -%}
     public static void {{type}}AttackMicro() throws GameActionException {
