@@ -1,0 +1,162 @@
+package current;
+import battlecode.common.*;
+
+public class TowerBuild {
+    public static RobotController rc;
+    public static int[] dx = {0, 1, 1, 1, 0, -1, -1, -1};
+    public static int[] dy = {1, 1, 0, -1, -1, -1, 0, 1};
+    public static int[][] last = null;
+
+    public static void init(RobotController rc) {
+        TowerBuild.rc = rc;
+        last = new int[rc.getMapWidth()][rc.getMapHeight()];
+    }
+
+    public static MapLocation getRuin(MapInfo[] near) throws GameActionException {
+        MapLocation best = null;
+        int closest = 100000000;
+        for (int i = near.length; --i >= 0; ) {
+            if (near[i].hasRuin()) {
+                MapLocation m = near[i].getMapLocation();
+                RobotInfo r = rc.senseRobotAtLocation(m);
+                if (r == null) {
+                    int d = m.distanceSquaredTo(rc.getLocation());
+                    if (d < closest && last[m.x][m.y] < rc.getRoundNum() && ((seeTaintedRuin(m) && rc.getType() == UnitType.MOPPER) || (rc.getType() == UnitType.SOLDIER && seeIncompleteRuin(m)))) {
+                        closest = d;
+                        best = m;
+                    }
+                }
+            }
+        }
+        return best;
+    }
+
+    public static boolean seeIncompleteRuin(MapLocation ruin) throws GameActionException {
+        MapLocation tmp;
+        UnitType t = Globals.getTowerToBuild();
+        boolean[][] pattern = rc.getTowerPattern(t);
+        RobotInfo tower = rc.senseRobotAtLocation(ruin);
+        boolean needsChanges = (tower == null);
+        // This should never trigger. Just here for completeness.
+        if (tower != null && tower.team != rc.getTeam()) return false;
+        {% for i in range(2, -3, -1) %}
+        {% for j in range(2, -3, -1) %}
+        {% if i != 0 or j != 0 %}
+        tmp = new MapLocation(ruin.x + {{i}}, ruin.y + {{j}});
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            switch (mi.getPaint()) {
+                case ENEMY_SECONDARY, ENEMY_PRIMARY: return false;
+                default: {
+                    boolean isSecondary = (mi.getPaint() == PaintType.ALLY_SECONDARY);
+                    boolean targetSecondary = pattern[{{i + 2}}][{{j + 2}}];
+                    if ((mi.getPaint() == PaintType.EMPTY) || (isSecondary != targetSecondary)) {
+                        needsChanges = true;
+                    }
+                }
+            }
+        }
+        {% endif %}
+        {% endfor %}
+        {% endfor %}
+        return needsChanges;
+    }
+
+    public static boolean seeTaintedRuin(MapLocation ruin) throws GameActionException {
+        MapLocation tmp;
+        UnitType t = Globals.getTowerToBuild();
+        boolean[][] pattern = rc.getTowerPattern(t);
+        {% for i in range(2, -3, -1) %}
+        {% for j in range(2, -3, -1) %}
+        {% if i != 0 or j != 0 %}
+        tmp = new MapLocation(ruin.x + {{i}}, ruin.y + {{j}});
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            switch (mi.getPaint()) {
+                case ENEMY_SECONDARY: return true;
+                case ENEMY_PRIMARY: return true;
+                default: {}
+            }
+        }
+        {% endif %}
+        {% endfor %}
+        {% endfor %}
+
+        return false;
+    }
+
+    public static void makeTower(MapLocation buildTower) throws GameActionException {
+
+        UnitType t = Globals.getTowerToBuild();
+        boolean[][] pattern = rc.getTowerPattern(t);
+
+        MapLocation tmp;
+        MapLocation goal = null;
+        boolean secondCol = false;
+        int bestDist = 1000000000;
+        {% for i in range(2, -3, -1) %}
+        {% for j in range(2, -3, -1) %}
+        {% if i != 0 or j != 0 %}
+        tmp = new MapLocation(buildTower.x + {{i}}, buildTower.y + {{j}});
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            switch (mi.getPaint()) {
+                case ENEMY_SECONDARY, ENEMY_PRIMARY -> {
+                    if (rc.getType() == UnitType.MOPPER) {
+                        int d = rc.getLocation().distanceSquaredTo(tmp);
+                        if (d < bestDist) {
+                            bestDist = d;
+                            goal = tmp;
+                        }
+                    }
+                }
+                default -> {
+                    if (rc.getType() == UnitType.SOLDIER) {
+                        boolean isSecondary = (mi.getPaint() == PaintType.ALLY_SECONDARY);
+                        boolean targetSecondary = pattern[{{i + 2}}][{{j + 2}}];
+                        if ((mi.getPaint() == PaintType.EMPTY) || (isSecondary != targetSecondary)) {
+                            int d = rc.getLocation().distanceSquaredTo(tmp);
+                            if (d < bestDist) {
+                                bestDist = d;
+                                goal = tmp;
+                                secondCol = targetSecondary;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        {% endif %}
+        {% endfor %}
+        {% endfor %}
+
+        if (goal != null) {
+            if (rc.canAttack(goal)) {
+                rc.setIndicatorDot(goal, 255, 0, 0);
+                rc.attack(goal, secondCol);
+            }
+            Pathing.pathTo(goal);
+        }
+        else {
+            if (rc.canCompleteTowerPattern(UnitType.LEVEL_ONE_PAINT_TOWER, buildTower)) {
+                rc.completeTowerPattern(UnitType.LEVEL_ONE_PAINT_TOWER, buildTower);
+            }
+            if (rc.canCompleteTowerPattern(UnitType.LEVEL_ONE_MONEY_TOWER, buildTower)) {
+                rc.completeTowerPattern(UnitType.LEVEL_ONE_MONEY_TOWER, buildTower);
+            }
+            if (rc.getLocation().distanceSquaredTo(buildTower) <= 2) {
+                for (int j = 8; --j >= 0;) {
+                    RobotInfo r = rc.senseRobotAtLocation(new MapLocation(buildTower.x + dx[j], buildTower.y + dy[j]));
+                    if (r != null && rc.getType() == r.getType()) {
+                        if (r.getLocation() == rc.getLocation()) break;
+                        last[buildTower.x][buildTower.y] = rc.getRoundNum() + 30;
+                        rc.setIndicatorString("ugh what");
+                        break;
+                    }
+                }
+            }
+            else Pathing.pathTo(buildTower);
+        }
+    }
+
+}

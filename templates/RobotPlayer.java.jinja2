@@ -15,6 +15,7 @@ public class RobotPlayer {
         Attack.init(rc);
         Explore.init(rc);
         RefuelManager.init(rc);
+        TowerBuild.init(rc);
         {%- macro generate_main_loop(classname) -%}
                 while (true) {
                     try {
