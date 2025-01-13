@@ -8,8 +8,23 @@ public class RefuelManager {
     public static MapLocation home = null;
     public static boolean reachedHome = false;
 
+    {% set numberPreviousPositions = 10 %}
+    {% for i in range(numberPreviousPositions) %}
+    public static MapLocation previousPosition{{i}};
+    {% endfor %}
+
     public static void init(RobotController rc) {
         RefuelManager.rc = rc;
+        {% for i in range(numberPreviousPositions) %}
+        previousPosition{{i}} = rc.getLocation();
+        {% endfor %}
+    }
+
+    public static void updatePositions() throws GameActionException {
+        {% for i in range(numberPreviousPositions - 1, 0, -1) %}
+        previousPosition{{i}} = previousPosition{{i - 1}};
+        {% endfor %}
+        previousPosition{{0}} = rc.getLocation();
     }
     
     public static final int TOWER_RUIN = 0;
@@ -37,40 +52,79 @@ public class RefuelManager {
         MapLocation[] ruins = rc.senseNearbyRuins(-1);
         for (MapLocation ruin: ruins) {
             RobotInfo robot = rc.senseRobotAtLocation(ruin);
+            if (robot != null && robot.team != rc.getTeam()) continue;
             int towerState = getTowerState(robot);
-            if (towerState >= homeState) {
+            // This home null check is only for when the robot is initialized
+            // Home will never be null after the robot is created.
+            if (home == null || towerState >= homeState) {
                 home = ruin;
                 homeState = towerState;
-                break;
+                reachedHome = false;
             }
         }
     }
 
     public static void refuel() throws GameActionException {
-        if (homeState != TOWER_PAINT) {
-            Explore.explore(null);
-            return;
+        boolean atHome = (rc.getLocation().distanceSquaredTo(home) <= 9);
+        if (atHome && !reachedHome) {
+            reachedHome = true;
         }
-        int dist = rc.getLocation().distanceSquaredTo(home);
-        if (dist <= 9) reachedHome = true;
-        if (!reachedHome) {
+            
+        if (!reachedHome && homeState == TOWER_PAINT) {
+            rc.setIndicatorString("Going home... " + home.x + " " + home.y);
             Pathing.pathTo(home);
-        } else if (dist <= 9 && homeState == TOWER_PAINT) {
+        } else if (atHome && homeState == TOWER_PAINT) {
+            rc.setIndicatorString("At home, refueling...");
             Pathing.pathTo(home);
             RobotInfo r = rc.senseRobotAtLocation(home);
             if (r == null) { 
                 homeState = getTowerState(r);
-                return;
+            } else {
+                int amt = Math.max(rc.getPaint() - rc.getType().paintCapacity, -r.getPaintAmount());
+                if (rc.canTransferPaint(home, amt)) {
+                    rc.transferPaint(home, amt);
+                }
             }
-            int amt = Math.max(rc.getPaint() - rc.getType().paintCapacity, -r.getPaintAmount());
-            if (rc.canTransferPaint(home, amt)) {
-                rc.transferPaint(home, amt);
+        } else if (homeState != TOWER_PAINT) {
+            rc.setIndicatorString("Going somewhere new!");
+            findPaintTower();
+        } else {
+            rc.setIndicatorString("homeState := " + homeState + ", " + home.x + " " + home.y);
+        }
+
+        updatePositions();
+    }
+
+    public static void findPaintTower() throws GameActionException {
+        double bestDistance = 0;
+        double currentDistance;
+        Direction bestDir = Direction.CENTER;
+        MapLocation myloc = rc.getLocation();
+        MapLocation nloc;
+        {% for direction in directions %}
+        nloc = myloc.add({{direction}});
+        if (rc.canSenseLocation(nloc) && rc.canMove({{direction}})) {
+            MapInfo mi = rc.senseMapInfo(nloc);
+            if (mi.getPaint().isAlly()) {
+                // currentDistance =  0.2 * nloc.distanceSquaredTo(pastTowerTarget);
+                currentDistance = 0;
+                {% for i in range(numberPreviousPositions) %}
+                // currentDistance += {{ (i + 1) / numberPreviousPositions }} * nloc.distanceSquaredTo(previousPosition{{i}});
+                currentDistance += nloc.distanceSquaredTo(previousPosition{{i}});
+                {% endfor %}
+                
+                if (currentDistance > bestDistance) {
+                    bestDir = {{direction}};
+                    bestDistance = currentDistance;
+                }
             }
         }
-        {# else if (reachedHome && homeState != TOWER_PAINT) {
-            Explore.explore(null);
-        } #}
+        {% endfor %}
+
+        if (rc.canMove(bestDir))
+            rc.move(bestDir);
     }
+
 
     public static void reset() throws GameActionException {
         reachedHome = false;

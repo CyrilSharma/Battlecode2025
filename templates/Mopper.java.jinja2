@@ -17,6 +17,7 @@ public class Mopper {
 
     public static void init(RobotController rc) {
         Mopper.rc = rc;
+        resourcePat = rc.getResourcePattern();
     }
 
     public static boolean canMop(MapInfo mi) throws GameActionException {
@@ -24,15 +25,45 @@ public class Mopper {
     }
 
     public static MapLocation seeRuin() throws GameActionException {
+        MapLocation best = null;
+        int closest = 100000000;
         for (int i = near.length; --i >= 0; ) {
             if (near[i].hasRuin()) {
-                RobotInfo r = rc.senseRobotAtLocation(near[i].getMapLocation());
-                if (r == null) {
-                    return near[i].getMapLocation();
+                MapLocation m = near[i].getMapLocation();
+                RobotInfo r = rc.senseRobotAtLocation(m);
+                if (r == null && seeTaintedRuin(m)) {
+                    int d = m.distanceSquaredTo(rc.getLocation());
+                    if (d < closest) {
+                        closest = d;
+                        best = m;
+                    }
                 }
             }
         }
-        return null;
+        return best;
+    }
+
+    public static boolean seeTaintedRuin(MapLocation ruin) throws GameActionException {
+        MapLocation tmp;
+        UnitType t = Globals.getTowerToBuild();
+        boolean[][] pattern = rc.getTowerPattern(t);
+        {% for i in range(2, -3, -1) %}
+        {% for j in range(2, -3, -1) %}
+        {% if i != 0 or j != 0 %}
+        tmp = new MapLocation(ruin.x + {{i}}, ruin.y + {{j}});
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            switch (mi.getPaint()) {
+                case ENEMY_SECONDARY: return true;
+                case ENEMY_PRIMARY: return true;
+                default: {}
+            }
+        }
+        {% endif %}
+        {% endfor %}
+        {% endfor %}
+
+        return false;
     }
 
     public static void makeTower() throws GameActionException {
@@ -87,62 +118,25 @@ public class Mopper {
         return false;
     }
 
-    public static boolean mopSquares() throws GameActionException {
-        if (rc.getPaint() < 20) return false;
-        MapLocation goal = null;
-        MapLocation secondGoal = null;
-        int bestDist = 1000000000;
-        int secondDist = 1000000000;
-        for (int i = near.length; --i >= 0; ) {
-            int d = rc.getLocation().distanceSquaredTo(near[i].getMapLocation());
-            if (near[i].getMark() != PaintType.EMPTY && near[i].getMark() != near[i].getPaint() && canMop(near[i])) {
-                if (d < bestDist) {
-                    bestDist = d;
-                    goal = near[i].getMapLocation();
-                }
-            }
-            if (canMop(near[i])) {
-                if (d < secondDist) {
-                    secondGoal = near[i].getMapLocation();
-                    secondDist = d;
-                }
-            }
-        }
-        if (goal != null) {
-            if (rc.canAttack(goal)) {
-                rc.attack(goal);
-            }
-            else {
-                Pathing.pathTo(goal);
-            }
-            return true;
-        }
-        else if (secondGoal != null) {
-            if (rc.canAttack(secondGoal)) {
-                rc.attack(secondGoal);
-            }
-            else {
-                Pathing.pathTo(secondGoal);
-            }
-            return true;
-        }
-        return false;
+    public static void run() throws GameActionException {
+        init();
+        runTurn();
+        postTurn();
     }
 
-    public static void run() throws GameActionException {
+    public static void init() throws GameActionException {
+        myloc = rc.getLocation();
+        myPaint = rc.getPaint();
         near = rc.senseNearbyMapInfos();
-        if (resourcePat == null) resourcePat = rc.getResourcePattern();
-
         RefuelManager.setHome();
         boolean lowHealth = (myPaint <= (paintCapacity >> 2));
         if (lowHealth != shouldGoHome) {
             shouldGoHome = lowHealth;
             RefuelManager.reset();
         }
+    }
 
-        myloc = rc.getLocation();
-        myPaint = rc.getPaint();
-
+    public static void runTurn() throws GameActionException {
         if (shouldGoHome) { 
             rc.setIndicatorString("Refueling");
             RefuelManager.refuel();
@@ -157,18 +151,22 @@ public class Mopper {
             buildTower = null;
             ruinLoc = seeRuin();
             if (ruinLoc != null) {
-                boolean incRuin = Globals.seeIncompleteRuin(ruinLoc);
-
-                if (incRuin){
-                    buildTower = ruinLoc;
-                }
-
-                if (buildTower != null) {
-                    makeTower();
-                }
+                rc.setIndicatorString("Building");
+                buildTower = ruinLoc;
+                makeTower();
             }
         }
         
-        if(!mopSquares()) Explore.exploreOnPaint(near);
+        Explore.exploreOnPaint(near);
+    }
+
+    public static void postTurn() throws GameActionException {
+        MapLocation nloc;
+        MapInfo mi;
+        {% for direction in directions %}
+        nloc = myloc.add({{direction}});
+        mi = rc.senseMapInfo(nloc);
+        if (rc.canAttack(nloc) && canMop(mi)) rc.attack(nloc);
+        {% endfor %}
     }
 }

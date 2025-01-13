@@ -113,7 +113,7 @@ public class Soldier {
             if (near[i].hasRuin()) {
                 MapLocation m = near[i].getMapLocation();
                 RobotInfo r = rc.senseRobotAtLocation(m);
-                if (r == null) {
+                if (r == null && seeIncompleteRuin(m)) {
                     int d = m.distanceSquaredTo(rc.getLocation());
                     if (d < closest) {
                         closest = d;
@@ -336,6 +336,37 @@ public class Soldier {
         }
     }
 
+    public static boolean seeIncompleteRuin(MapLocation ruin) throws GameActionException {
+        MapLocation tmp;
+        UnitType t = Globals.getTowerToBuild();
+        boolean[][] pattern = rc.getTowerPattern(t);
+        RobotInfo tower = rc.senseRobotAtLocation(ruin);
+        boolean needsChanges = (tower == null);
+        // This should never trigger. Just here for completeness.
+        if (tower != null && tower.team != rc.getTeam()) return false;
+        {% for i in range(2, -3, -1) %}
+        {% for j in range(2, -3, -1) %}
+        {% if i != 0 or j != 0 %}
+        tmp = new MapLocation(ruin.x + {{i}}, ruin.y + {{j}});
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            switch (mi.getPaint()) {
+                case ENEMY_SECONDARY, ENEMY_PRIMARY: return false;
+                default: {
+                    boolean isSecondary = (mi.getPaint() == PaintType.ALLY_SECONDARY);
+                    boolean targetSecondary = pattern[{{i + 2}}][{{j + 2}}];
+                    if ((mi.getPaint() == PaintType.EMPTY) || (isSecondary != targetSecondary)) {
+                        needsChanges = true;
+                    }
+                }
+            }
+        }
+        {% endif %}
+        {% endfor %}
+        {% endfor %}
+        return needsChanges;
+    }
+
 
     public static void run() throws GameActionException {
         initTurn();
@@ -369,29 +400,20 @@ public class Soldier {
             buildTower = null;
             ruinLoc = seeRuin();
             if (ruinLoc != null) {
-                boolean incRuin = Globals.seeIncompleteRuin(ruinLoc);
-                if (incRuin){
-                    buildTower = ruinLoc;
-                }
-                else if (ruinLoc != null && rc.getMoney() >= 1000) {
-                    buildTower = ruinLoc;   
-                }
-
-                if (buildTower != null) {
-                    rc.setIndicatorString("Building a tower + (" + buildTower.x + ", " + buildTower.y + ")");
-                    makeTower();
-                    return;
-                }
+                buildTower = ruinLoc;
+                rc.setIndicatorString("Building a tower + (" + buildTower.x + ", " + buildTower.y + ")");
+                makeTower();
+                return;
             }
         }
 
         moneyPattern();
-        
         if (markedResource != null) {
             rc.setIndicatorString("Patching Resource");
             makeResourcePatch();
             return;
         } else {
+            rc.setIndicatorString("Exploring");
             Explore.explore(near);
             return;
         }        
