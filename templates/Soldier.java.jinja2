@@ -162,12 +162,10 @@ public class Soldier {
         {% endfor %}
 
         if (goal != null) {
+            Pathing.pathTo(goal);
             if (rc.canAttack(goal)) {
                 rc.setIndicatorDot(goal, 255, 0, 0);
                 rc.attack(goal, secondCol);
-            }
-            else {
-                Pathing.pathTo(goal);
             }
         }
         else {
