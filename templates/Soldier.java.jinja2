@@ -106,79 +106,6 @@ public class Soldier {
         return canChangeColor(mi);
     }
 
-    public static MapLocation seeRuin() throws GameActionException {
-        MapLocation best = null;
-        int closest = 100000000;
-        for (int i = near.length; --i >= 0; ) {
-            if (near[i].hasRuin()) {
-                MapLocation m = near[i].getMapLocation();
-                RobotInfo r = rc.senseRobotAtLocation(m);
-                if (r == null && seeIncompleteRuin(m)) {
-                    int d = m.distanceSquaredTo(rc.getLocation());
-                    if (d < closest) {
-                        closest = d;
-                        best = m;
-                    }
-                }
-            }
-        }
-        return best;
-    }
-
-    public static void makeTower() throws GameActionException {
-        assert(buildTower != null);
-
-        UnitType t = Globals.getTowerToBuild();
-        boolean[][] pattern = rc.getTowerPattern(t);
-
-        MapLocation tmp;
-        MapLocation goal = null;
-        boolean secondCol = false;
-        int bestDist = 1000000000;
-        {% for i in range(2, -3, -1) %}
-        {% for j in range(2, -3, -1) %}
-        {% if i != 0 or j != 0 %}
-        tmp = new MapLocation(buildTower.x + {{i}}, buildTower.y + {{j}});
-        if (rc.canSenseLocation(tmp)) {
-            MapInfo mi = rc.senseMapInfo(tmp);
-            switch (mi.getPaint()) {
-                case ENEMY_SECONDARY, ENEMY_PRIMARY -> {}
-                default -> {
-                    boolean isSecondary = (mi.getPaint() == PaintType.ALLY_SECONDARY);
-                    boolean targetSecondary = pattern[{{i + 2}}][{{j + 2}}];
-                    if ((mi.getPaint() == PaintType.EMPTY) || (isSecondary != targetSecondary)) {
-                        int d = rc.getLocation().distanceSquaredTo(tmp);
-                        if (d < bestDist) {
-                            bestDist = d;
-                            goal = tmp;
-                            secondCol = targetSecondary;
-                        }
-                    }
-                }
-            }
-        }
-        {% endif %}
-        {% endfor %}
-        {% endfor %}
-
-        if (goal != null) {
-            Pathing.pathTo(goal);
-            if (rc.canAttack(goal)) {
-                rc.setIndicatorDot(goal, 255, 0, 0);
-                rc.attack(goal, secondCol);
-            }
-        }
-        else {
-            if (rc.canCompleteTowerPattern(UnitType.LEVEL_ONE_PAINT_TOWER, buildTower)) {
-                rc.completeTowerPattern(UnitType.LEVEL_ONE_PAINT_TOWER, buildTower);
-            }
-            if (rc.canCompleteTowerPattern(UnitType.LEVEL_ONE_MONEY_TOWER, buildTower)) {
-                rc.completeTowerPattern(UnitType.LEVEL_ONE_MONEY_TOWER, buildTower);
-            }
-            Pathing.pathTo(buildTower);
-        }
-    }
-
     public static boolean visited(MapLocation m) throws GameActionException {
        switch (m.y) {
             {% for y in range(0, 60) -%}
@@ -397,12 +324,9 @@ public class Soldier {
             Attack.soldierAttackMicro();
             return;
         } else if (rc.getNumberTowers() < 25 && markedResource == null) {
-            buildTower = null;
-            ruinLoc = seeRuin();
-            if (ruinLoc != null) {
-                buildTower = ruinLoc;
-                rc.setIndicatorString("Building a tower + (" + buildTower.x + ", " + buildTower.y + ")");
-                makeTower();
+            MapLocation buildTower = TowerBuild.getRuin(near);
+            if (buildTower != null) {
+                TowerBuild.makeTower(buildTower);
                 return;
             }
         }
