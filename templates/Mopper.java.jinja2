@@ -42,6 +42,35 @@ public class Mopper {
         }
     }
 
+    public static boolean checkNearby(MapLocation loc) throws GameActionException {
+        MapLocation tmp;
+        {% for i in range(2, -3, -1) %}
+        {% for j in range(2, -3, -1) %}
+        {% if i != 0 or j != 0 %}
+        tmp = new MapLocation(loc.x + {{i}}, loc.y + {{j}});
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (mi.getPaint() != PaintType.EMPTY && !mi.getPaint().isAlly()) {
+                if (rc.canAttack(tmp)) {
+                    rc.attack(tmp);
+                    return true;
+                }
+            }
+        }
+        {% endif %}
+        {% endfor %}
+        {% endfor %}
+        return false;
+    }
+
+    public static void helpPattern(MapInfo[] near) throws GameActionException {
+        for (int i = near.length; --i >= 0;) {
+            if (near[i].getMark() == PaintType.ALLY_PRIMARY) {
+                if (checkNearby(near[i].getMapLocation())) return;
+            }
+        }
+    }
+
     public static void runTurn() throws GameActionException {
         if (shouldGoHome) { 
             rc.setIndicatorString("Refueling");
@@ -59,6 +88,8 @@ public class Mopper {
                 TowerBuild.makeTower(buildTower);
             }
         }
+
+        helpPattern(near);
         
         Explore.exploreOnPaint(near);
     }
