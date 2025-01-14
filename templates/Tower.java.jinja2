@@ -36,7 +36,9 @@ public class Tower {
         MapLocation nextLoc;
 
         towerTryAttack();
-        if (rc.getRoundNum() > 50) {
+        int lim = 10;
+        if (rc.getMapHeight() * rc.getMapWidth() <= 600) lim = 50;
+        if (rc.getRoundNum() > lim) {
             if(rc.getMoney() < 1250) return;
             if(rc.getPaint() < 200) return;
         }

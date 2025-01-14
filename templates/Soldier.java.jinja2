@@ -18,6 +18,7 @@ public class Soldier {
     public static MapLocation markedResource = null;
     public static boolean[][] resourcePat = null;
     public static boolean shouldGoHome = false;
+    public static boolean moved = false;
 
     public static int evenChunkDx[] = {0, 4, -4, 1, 1};
     public static int evenChunkDy[] = {0, 0, 0, 3, -3};
@@ -126,7 +127,12 @@ public class Soldier {
                 if (rc.canSenseLocation(cur)) {
                     MapInfo mi = rc.senseMapInfo(cur);
                     if (mi.getMark() != PaintType.EMPTY) return false;
-                    if (!mi.isPassable()) return false;
+                    if (!mi.isPassable()) {
+                        if (rc.canMark(m)) {
+                            rc.mark(m, true);
+                        }
+                        return false;
+                    }
                     if (mi.getPaint() == PaintType.EMPTY) ok = true;
                     else if (!mi.getPaint().isAlly()) return false;
                     boolean b = shouldUseSecond(cur);
@@ -143,8 +149,8 @@ public class Soldier {
     }
 
     public static void moneyPattern() throws GameActionException {
+        moved = false;
         if (markedResource != null) return;
-        if (ruinLoc != null && rc.getNumberTowers() < 25) return;
         if (rc.getPaint() < 50) return;
 
         if (chunkGoal == null) {
@@ -167,54 +173,67 @@ public class Soldier {
             }
         }
 
+        if (chunkGoal != null){
+            rc.setIndicatorString("going to chunk " + chunkGoal);
+            Pathing.pathTo(chunkGoal);
+            moved = true;
+        }
+        else return;
+        
+        /*
         if (chunkGoal != null) {
             if (!rc.getLocation().equals(chunkGoal)) {
                 Pathing.pathTo(chunkGoal);
             }
         }
         else return;
+        */
 
-        MapLocation c = getLowerCenter(rc.getLocation());
-        if (!c.equals(rc.getLocation())) return;
+        //MapLocation c = getLowerCenter(rc.getLocation());
+        //if (!c.equals(rc.getLocation())) return;
 
         boolean bad = false;
+        boolean no = false;
         for (int i = 3; --i >= -2; ){
-            if (bad) break;
             for (int j = 3; --j >= -2; ){
-                MapLocation tmp = new MapLocation(rc.getLocation().x + i, rc.getLocation().y + j);
+                MapLocation tmp = new MapLocation(chunkGoal.x + i, chunkGoal.y + j);
                 if (rc.canSenseLocation(tmp)) {
                     MapInfo mi = rc.senseMapInfo(tmp);
-                    if (mi.getMark() != PaintType.EMPTY) {
-                        if (resourcePat[i + 2][j + 2] != (mi.getMark() == PaintType.ALLY_SECONDARY)) {
-                            bad = true;
-                            break;
-                        }
+                    if (mi.getMark() == PaintType.ALLY_SECONDARY) {
+                        bad = true;
                     }
                     if (!mi.isPassable()) {
                         bad = true;
-                        break;
                     }
                     RobotInfo r = rc.senseRobotAtLocation(tmp);
                     if (r != null && Globals.isTower(r.getType())) {
                         bad = true;
-                        break;
                     }
                 }
                 else {
                     bad = true;
-                    break;
+                    if(rc.onTheMap(tmp)) no = true;
                 }
             }
         }
-        if (!bad) {
-            //i think this check can probably be removed...
-            if (rc.canMarkResourcePattern(rc.getLocation())) {
-                markedResource = rc.getLocation();
+        if (bad && !no) {
+            if (rc.canMark(chunkGoal)) {
+                rc.mark(chunkGoal, true);
                 chunkGoal = null;
             }
+            else {
+                Pathing.pathTo(chunkGoal);
+                rc.setIndicatorString("going to chunk2 " + chunkGoal);
+                moved = true;
+            }
+            return;
         }
-        else {
-            chunkGoal = null;
+        if (!bad) {
+            if (rc.canMark(chunkGoal)) {
+                rc.mark(chunkGoal, false);
+                markedResource = chunkGoal;
+                chunkGoal = null;
+            }
         }
     }
 
@@ -313,6 +332,36 @@ public class Soldier {
             RefuelManager.reset();
         }
     }
+
+    public static boolean checkNearby(MapLocation loc) throws GameActionException {
+        MapLocation tmp;
+        {% for i in range(2, -3, -1) %}
+        {% for j in range(2, -3, -1) %}
+        {% if i != 0 or j != 0 %}
+        tmp = new MapLocation(loc.x + {{i}}, loc.y + {{j}});
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            boolean b = shouldUseSecond(tmp);
+            if (mi.getPaint() == PaintType.EMPTY || (mi.getPaint().isAlly() && b != (mi.getPaint() == PaintType.ALLY_SECONDARY))) {
+                if (rc.canAttack(tmp)) {
+                    rc.attack(tmp, b);
+                    return true;
+                }
+            }
+        }
+        {% endif %}
+        {% endfor %}
+        {% endfor %}
+        return false;
+    }
+
+    public static void helpPattern(MapInfo[] near) throws GameActionException {
+        for (int i = near.length; --i >= 0;) {
+            if (near[i].getMark() == PaintType.ALLY_PRIMARY) {
+                if (checkNearby(near[i].getMapLocation())) return;
+            }
+        }
+    }
     
     public static void runTurn() throws GameActionException {
         if (shouldGoHome) {
@@ -336,11 +385,14 @@ public class Soldier {
             rc.setIndicatorString("Patching Resource");
             makeResourcePatch();
             return;
-        } else {
-            rc.setIndicatorString("Exploring");
-            Explore.explore(near);
-            return;
-        }        
+        }
+
+        helpPattern(near);
+
+        if (moved) return;
+
+        rc.setIndicatorString("Exploring");
+        Explore.explore(near);
     }
 
     public static void postTurn() throws GameActionException {
