@@ -42,5 +42,8 @@ test: all
 clone: all
 	sh clone.sh $(BASELINE)
 
+zip: all
+	cd java && ./gradlew zipForSubmit
+
 clean:
 	rm -rf $(OUTPUT_DIR)
