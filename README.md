@@ -19,6 +19,9 @@ Purges the src/current directory.
 ```make test```
 Runs the modal tester.
 
+```make pullMatches```
+Grabs matches run with modal and puts them into test/matches.
+
 ```make clone```
 Creates a new baseline.
 

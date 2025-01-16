@@ -39,6 +39,9 @@ $(OUTPUT_DIR)/%.java: $(TEMPLATE_DIR)/%.java.jinja2 $(DEPS)
 test: all
 	uv run modal run $(MODAL_SCRIPT) --team1=current --team2=$(BASELINE)
 
+pullMatches:
+	uv run modal volume get battlecode-vol / test/matches --force
+
 clone: all
 	sh clone.sh $(BASELINE)
 
