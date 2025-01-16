@@ -106,6 +106,10 @@ def tester(team1: str, team2: str, map: str):
     winner = team1 if team1_game1 else team2
     winningPlayer = 'PlayerA' if team1_game1 else 'PlayerB'
     print(f"{winner} wins on map {map} as {winningPlayer} for reason: {get_reason(lines)}")
+
+    for file in os.listdir("/root/matches/"):
+        shutil.copyfile("/root/matches/" + file, "/root/matches_final/" + file)
+        
     return {
         team1: team1_game1,
         team2: team2_game1
