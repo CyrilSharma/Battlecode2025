@@ -2,7 +2,7 @@
 
 # Hardcoded source directory and base path for new directory
 SOURCE_DIR="java/src/current"
-BASE_PATH="java/src/"
+BASE_PATH="java/src"
 
 # Check if SOURCE_DIR exists
 if [[ ! -d "$SOURCE_DIR" ]]; then
