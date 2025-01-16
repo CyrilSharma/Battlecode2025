@@ -5,4 +5,5 @@
 **/matches
 **/client
 java/src/current
+*.pyc
 

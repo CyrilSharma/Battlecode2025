@@ -3,7 +3,10 @@ HELPERS_DIR := helpers
 OUTPUT_DIR := java/src/current
 
 # Python script for processing
-PYTHON_SCRIPT := jinja.py
+JINJA_SCRIPT := jinja.py
+
+# Python script for testing
+MODAL_SCRIPT := test/modal_tester.py
 
 # Find all .java.jinja2 files in the template directory
 TEMPLATES := $(wildcard $(TEMPLATE_DIR)/*.java.jinja2)
@@ -14,7 +17,7 @@ OUTPUTS := $(patsubst $(TEMPLATE_DIR)/%.java.jinja2, $(OUTPUT_DIR)/%.java, $(TEM
 HELPER_FILES := $(wildcard $(HELPERS_DIR)/*)
 
 # DEPS includes the Python script and all helper files
-DEPS := $(PYTHON_SCRIPT) $(HELPER_FILES)
+DEPS := $(JINJA_SCRIPT) $(HELPER_FILES)
 
 # Default mode (debug)
 MODE := False
@@ -30,8 +33,14 @@ prod: $(OUTPUTS)
 $(OUTPUT_DIR)/%.java: $(TEMPLATE_DIR)/%.java.jinja2 $(DEPS)
 	mkdir -p $(OUTPUT_DIR)
 	rm -f $@
-	python3 $(PYTHON_SCRIPT) --input $< --output $@ --prod $(MODE)
+	uv run $(JINJA_SCRIPT) --input $< --output $@ --prod $(MODE)
 	chmod 444 $@
+
+test: all
+	uv run modal run $(MODAL_SCRIPT) --team1=current --team2=$(BASELINE)
+
+clone: all
+	sh clone.sh $(BASELINE)
 
 clean:
 	rm -rf $(OUTPUT_DIR)
