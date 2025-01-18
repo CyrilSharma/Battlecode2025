@@ -197,7 +197,7 @@ public class Pathing {
         }
         {% endfor %}
 
-        rc.setIndicatorString("Left: " + (count - Clock.getBytecodeNum()));
+        //rc.setIndicatorString("Left: " + (count - Clock.getBytecodeNum()));
         if (bestDir != null && bestDir != Direction.CENTER)
             rc.move(bestDir);
         return;
