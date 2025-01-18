@@ -19,12 +19,7 @@ public class Soldier {
     public static boolean[][] resourcePat = null;
     public static boolean shouldGoHome = false;
     public static boolean moved = false;
-
-    //:clown:
-    public static int checkX[] = {0, 0, 0, 1, 1, 2, 1, 0, 0, -1, -1, -2, -1};
-    public static int checkY[] = {0, 1, 2, 1, 0, 0, -1, -1, -2, -1, 0, 0, 1};
-
-    public static MapLocation chunkGoal = null;
+    public static MapLocation returnLoc = null;
 
     public static void init(RobotController rc) {
         Soldier.rc = rc;
@@ -32,7 +27,7 @@ public class Soldier {
     }
 
     public static boolean shouldUseSecond(MapLocation loc, MapLocation center) throws GameActionException {
-        return resourcePat[2 + (center.x - loc.x)][2 + (center.y - loc.y)];
+        return resourcePat[2 + (loc.x - center.x)][2 + (loc.y - center.y)];
     }
 
     public static boolean okToTile(MapLocation m) throws GameActionException {
@@ -154,6 +149,7 @@ public class Soldier {
     public static void makeResourcePatch() throws GameActionException {
         //TODO: if we see a conflict, stop building and mark with a 2 (can add later)
         Pathing.pathTo(markedResource);
+        moved = true;
         MapLocation goal = null;
         int bestDist = 1000000000;
         boolean secondCol = false;
@@ -179,7 +175,6 @@ public class Soldier {
                 }
             }
         }
-        rc.setIndicatorString("my f goal is " + goal);
         if (goal != null) {
             if (rc.canAttack(goal)) {
                 rc.attack(goal, secondCol);
@@ -201,38 +196,6 @@ public class Soldier {
         }
     }
 
-    public static boolean seeIncompleteRuin(MapLocation ruin) throws GameActionException {
-        MapLocation tmp;
-        UnitType t = Globals.getTowerToBuild();
-        boolean[][] pattern = rc.getTowerPattern(t);
-        RobotInfo tower = rc.senseRobotAtLocation(ruin);
-        boolean needsChanges = (tower == null);
-        // This should never trigger. Just here for completeness.
-        if (tower != null && tower.team != rc.getTeam()) return false;
-        {% for i in range(2, -3, -1) %}
-        {% for j in range(2, -3, -1) %}
-        {% if i != 0 or j != 0 %}
-        tmp = new MapLocation(ruin.x + {{i}}, ruin.y + {{j}});
-        if (rc.canSenseLocation(tmp)) {
-            MapInfo mi = rc.senseMapInfo(tmp);
-            switch (mi.getPaint()) {
-                case ENEMY_SECONDARY, ENEMY_PRIMARY: return false;
-                default: {
-                    boolean isSecondary = (mi.getPaint() == PaintType.ALLY_SECONDARY);
-                    boolean targetSecondary = pattern[{{i + 2}}][{{j + 2}}];
-                    if ((mi.getPaint() == PaintType.EMPTY) || (isSecondary != targetSecondary)) {
-                        needsChanges = true;
-                    }
-                }
-            }
-        }
-        {% endif %}
-        {% endfor %}
-        {% endfor %}
-        return needsChanges;
-    }
-
-
     public static void run() throws GameActionException {
         initTurn();
         runTurn();
@@ -243,11 +206,13 @@ public class Soldier {
         near = rc.senseNearbyMapInfos();
         myloc = rc.getLocation();
         myPaint = rc.getPaint();
+        moved = false;
 
         RefuelManager.setHome();
         boolean lowHealth = (myPaint <= (paintCapacity >> 2));
         if (lowHealth != shouldGoHome) {
             shouldGoHome = lowHealth;
+            if (buildTower != null && shouldGoHome) returnLoc = buildTower;
             RefuelManager.reset();
         }
     }
@@ -269,7 +234,6 @@ public class Soldier {
         return false;
     }
 
-    /*
     public static boolean checkNearby(MapLocation loc) throws GameActionException {
         MapLocation tmp;
         {% for i in range(2, -3, -1) %}
@@ -278,7 +242,7 @@ public class Soldier {
         tmp = new MapLocation(loc.x + {{i}}, loc.y + {{j}});
         if (rc.canSenseLocation(tmp)) {
             MapInfo mi = rc.senseMapInfo(tmp);
-            boolean b = shouldUseSecond(tmp);
+            boolean b = shouldUseSecond(tmp, loc);
             if (mi.getPaint() == PaintType.EMPTY || (mi.getPaint().isAlly() && b != (mi.getPaint() == PaintType.ALLY_SECONDARY))) {
                 if (rc.canAttack(tmp)) {
                     rc.attack(tmp, b);
@@ -299,7 +263,6 @@ public class Soldier {
             }
         }
     }
-    */
     
     public static void runTurn() throws GameActionException {
         if (shouldGoHome) {
@@ -311,10 +274,19 @@ public class Soldier {
             Attack.soldierAttackMicro();
             return;
         } else if (rc.getNumberTowers() < 25 && markedResource == null) {
-            MapLocation buildTower = TowerBuild.getRuin(near);
+            buildTower = TowerBuild.getRuin(near);
             if (buildTower != null) {
                 TowerBuild.makeTower(buildTower);
                 return;
+            }
+        }
+
+        if (returnLoc != null) {
+            if (myloc.distanceSquaredTo(returnLoc) <= 5) {
+                returnLoc = null;
+            }
+            else {
+                Pathing.pathTo(returnLoc);
             }
         }
 
@@ -325,11 +297,11 @@ public class Soldier {
             return;
         }
 
-        //helpPattern(near);
+        helpPattern(near);
 
         if (moved) return;
 
-        rc.setIndicatorString("Exploring");
+        //rc.setIndicatorString("Exploring");
         Explore.explore(near);
     }
 

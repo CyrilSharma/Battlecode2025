@@ -5,9 +5,13 @@ import battlecode.common.*;
 public class Globals {
     public static RobotController rc;
     public static final Random rng = new Random();
-    public static void init(RobotController rc) {
+    public static boolean[][] moneyTower;
+    public static boolean[][] paintTower;
+    public static void init(RobotController rc) throws GameActionException {
         rng.setSeed((long) rc.getID());
         Globals.rc = rc;
+        moneyTower = rc.getTowerPattern(UnitType.LEVEL_ONE_MONEY_TOWER);
+        paintTower = rc.getTowerPattern(UnitType.LEVEL_ONE_PAINT_TOWER);
     }
 
     public static RobotInfo[] friends;
@@ -17,8 +21,30 @@ public class Globals {
         enemies = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
     }
 
-    public static UnitType getTowerToBuild() throws GameActionException {
-        // return UnitType.LEVEL_ONE_MONEY_TOWER;
+    public static UnitType getTowerToBuild(MapLocation loc) throws GameActionException {
+        int pt = 0, mt = 0;
+        MapLocation tmp;
+        String s = "";
+        {% for i in range(2, -3, -1) %}
+        {% for j in range(2, -3, -1) %}
+        {% if i != 0 or j != 0 %}
+        tmp = new MapLocation(loc.x + {{i}}, loc.y + {{j}});
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (mi.getPaint().isAlly()) {
+                if ((mi.getPaint() == PaintType.ALLY_SECONDARY) == paintTower[2 + (tmp.x - loc.x)][2 + (tmp.y - loc.y)]) {
+                    pt++;
+                }
+                if ((mi.getPaint() == PaintType.ALLY_SECONDARY) == moneyTower[2 + (tmp.x - loc.x)][2 + (tmp.y - loc.y)]) {
+                    mt++;
+                }
+            }
+        }
+        {% endif %}
+        {% endfor %}
+        {% endfor %}
+        if (mt - pt >= 5) return UnitType.LEVEL_ONE_MONEY_TOWER;
+        if (pt - mt >= 5) return UnitType.LEVEL_ONE_PAINT_TOWER;
         int sz = Math.max(rc.getMapWidth(), rc.getMapHeight());
         int firstPaint = 0;
         if (sz <= 35) {
