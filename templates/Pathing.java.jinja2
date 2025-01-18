@@ -22,8 +22,8 @@ public class Pathing {
         MapInfo nextTile;
         if (rc.canMove(dir)){
             nextTile = rc.senseMapInfo(rc.getLocation().add(dir));
-            if(canPaint(nextTile) && rc.canAttack(rc.getLocation().add(dir))){
-                rc.attack(rc.getLocation().add(dir), Soldier.shouldUseSecond(rc.getLocation().add(dir)));
+            if(canPaint(nextTile) && rc.canAttack(nextTile.getMapLocation()) && Soldier.okToTile(target)){
+                rc.attack(nextTile.getMapLocation(), Soldier.getGoodColor(nextTile.getMapLocation()));
             }
             rc.move(dir);
             return;
@@ -34,8 +34,8 @@ public class Pathing {
                 le = le.rotateLeft();
                 if (rc.canMove(le)) {
                     nextTile = rc.senseMapInfo(rc.getLocation().add(le));
-                    if(canPaint(nextTile) && rc.canAttack(rc.getLocation().add(le))){
-                        rc.attack(rc.getLocation().add(le), Soldier.shouldUseSecond(rc.getLocation().add(le)));
+                    if(canPaint(nextTile) && rc.canAttack(nextTile.getMapLocation()) && Soldier.okToTile(target)){
+                        rc.attack(nextTile.getMapLocation(), Soldier.getGoodColor(nextTile.getMapLocation()));
                     }
                     rc.move(le);
                     break loop;
@@ -43,8 +43,8 @@ public class Pathing {
                 ri = ri.rotateRight();
                 if (rc.canMove(ri)) {
                     nextTile = rc.senseMapInfo(rc.getLocation().add(ri));
-                    if(canPaint(nextTile) && rc.canAttack(rc.getLocation().add(ri))){
-                        rc.attack(rc.getLocation().add(ri), Soldier.shouldUseSecond(rc.getLocation().add(ri)));
+                    if(canPaint(nextTile) && rc.canAttack(nextTile.getMapLocation()) && Soldier.okToTile(target)){
+                        rc.attack(nextTile.getMapLocation(), Soldier.getGoodColor(nextTile.getMapLocation()));
                     }
                     rc.move(ri);
                     break loop;
