@@ -5,51 +5,305 @@ public class Pathing {
     public static RobotController rc;
     public static void init(RobotController rc) {
         Pathing.rc = rc;
+        resetPathing(null);
     }
 
-    public static boolean canPaint(MapInfo mi) throws GameActionException {
-        if (rc.getType() == UnitType.SOLDIER) {
-            return (mi.getPaint() == PaintType.EMPTY && rc.getPaint() >= 50);
-        }
-        if (rc.getType() == UnitType.MOPPER) {
-            return (!mi.getPaint().isAlly() && mi.getPaint() != PaintType.EMPTY);
-        }
-        return false;
-    }
+    {% set PATHING_ITERS = 10 %}
+    {% set MAX_PATH_BACKUP = 50 * PATHING_ITERS %}
+    {% set VISION_WIDTH = 9 %}
+    {% set MIDDLE_OFFSET = intDiv(VISION_WIDTH, 2) %}
+    {% set BOTTOM_MASK_ROWS = 7 %}
+    {% set BOTTOM_MASK_BITS = BOTTOM_MASK_ROWS * VISION_WIDTH %}
 
-    public static void pathTo(MapLocation target) throws GameActionException {
-        Direction dir = rc.getLocation().directionTo(target);
-        MapInfo nextTile;
-        if (rc.canMove(dir)){
-            nextTile = rc.senseMapInfo(rc.getLocation().add(dir));
-            if(canPaint(nextTile) && rc.canAttack(nextTile.getMapLocation()) && Soldier.okToTile(target)){
-                rc.attack(nextTile.getMapLocation(), Soldier.getGoodColor(nextTile.getMapLocation()));
+    public static MapLocation myloc;
+    public static int bestBugDist = 100000000;
+    public static boolean shouldBug = false;
+    public static boolean doneSimulating = false;
+    public static MapLocation currentTarget = null;
+
+    public static int pathLength = 0;
+    {% for i in range(MAX_PATH_BACKUP) %}
+    public static MapLocation bugPath{{i}} = null;
+    {% endfor %}
+
+    public static void appendCurrentPosition() {
+        switch (pathLength) {
+            {% for length in range(MAX_PATH_BACKUP - 1, -1, -1) %}
+            case {{length}} ->  {
+                {% if length != 0 %}
+                if (!bugPath{{length-1}}.equals(currentBugPosition))
+                {% endif %}
+                {
+                    bugPath{{length}} = currentBugPosition;
+                    pathLength++;
+                }
             }
-            rc.move(dir);
-            return;
+            {% endfor %}
+            default -> { assert(pathLength <= {{MAX_PATH_BACKUP}}); }
         }
-        Direction le = dir, ri = dir;
-        loop: {
-            {% for i in range(4) %}
-                le = le.rotateLeft();
-                if (rc.canMove(le)) {
-                    nextTile = rc.senseMapInfo(rc.getLocation().add(le));
-                    if(canPaint(nextTile) && rc.canAttack(nextTile.getMapLocation()) && Soldier.okToTile(target)){
-                        rc.attack(nextTile.getMapLocation(), Soldier.getGoodColor(nextTile.getMapLocation()));
+    }
+
+    public static void setCurrentPosition() {
+        currentBugPosition = null;
+        findCurrentBugPosition: {
+            switch (pathLength - 1) {
+                {% for i in range(MAX_PATH_BACKUP - 1, -1, -1) %}
+                case {{i}}: {
+                    if (bugPath{{i}}.distanceSquaredTo(myloc) <= GameConstants.VISION_RADIUS_SQUARED) {
+                        currentBugPosition = bugPath{{i}};
+                        break findCurrentBugPosition;
                     }
-                    rc.move(le);
-                    break loop;
-                }               
-                ri = ri.rotateRight();
-                if (rc.canMove(ri)) {
-                    nextTile = rc.senseMapInfo(rc.getLocation().add(ri));
-                    if(canPaint(nextTile) && rc.canAttack(nextTile.getMapLocation()) && Soldier.okToTile(target)){
-                        rc.attack(nextTile.getMapLocation(), Soldier.getGoodColor(nextTile.getMapLocation()));
-                    }
-                    rc.move(ri);
-                    break loop;
-                }               
+                }
+                {% endfor %}
+                default: {
+                    assert(pathLength <= {{MAX_PATH_BACKUP}});
+                }
+            }
+        }
+        if (currentBugPosition == null) {
+            resetPathing(currentTarget);
+        }
+    }
+
+    public static MapLocation currentBugPosition = null;
+    public static Direction currentBugDirection = null;
+    public static void pathTo(MapLocation target) throws GameActionException {
+        int count = Clock.getBytecodeNum();
+        myloc = rc.getLocation();
+        rc.setIndicatorDot(target, 0, 0, 255);
+        if (currentTarget == null || !target.equals(currentTarget)) {
+            resetPathing(target);
+        } else {
+            setCurrentPosition();
+        }
+        
+        rc.setIndicatorDot(currentBugPosition, 0, 255, 0);
+        doneSimulating = currentBugPosition.equals(target);
+        bugLoop: {
+            {% for i in range(PATHING_ITERS) %}
+            if (doneSimulating || currentBugPosition.equals(target)) break bugLoop;
+            if (shouldBug) {
+                bug();
+            } else {
+                greedy();
+            }
+            appendCurrentPosition();
             {% endfor %}
         }
+        
+
+        long localMask0 = 0;
+        long localMask1 = 0;
+        int index = ((currentBugPosition.y - (myloc.y - {{MIDDLE_OFFSET}})) * {{VISION_WIDTH}})
+                   + (currentBugPosition.x - (myloc.x - {{MIDDLE_OFFSET}}));
+        if (index >= {{ BOTTOM_MASK_BITS }}) {
+            localMask1 = 1L << (index - {{ BOTTOM_MASK_BITS }});
+        } else {
+            localMask0 = 1L << index;
+        }
+
+        long temp;
+        long adjIntersection;
+        // 0b000000000
+        //   000111000
+        //   000111000
+        //   000111000
+        //   000000000
+        //   000000000
+        //   000000000L;
+        long adjTiles = 0b000000000000111000000111000000111000000000000000000000000000000L;
+        long mask0 = 0x7FFFFFFFFFFFFFFFL;
+        long mask1 = 0x3FFFFL;
+        long loverflow = 0x7fbfdfeff7fbfdfeL;
+        long roverflow = 0x3fdfeff7fbfdfeffL;
+
+        // Seen mask.
+        // 111111111
+        // 111111111
+        // 111111111
+        // 111111111
+        // 111111111
+        // 011111110
+        // 001111100
+        long passible0 = (~(
+              ((long)(TileLoader.local_wall6 | TileLoader.local_ruin6) << {{6 * VISION_WIDTH}})
+            | ((long)(TileLoader.local_wall5 | TileLoader.local_ruin5) << {{5 * VISION_WIDTH}})
+            | ((long)(TileLoader.local_wall4 | TileLoader.local_ruin4) << {{4 * VISION_WIDTH}})
+            | ((long)(TileLoader.local_wall3 | TileLoader.local_ruin3) << {{3 * VISION_WIDTH}})
+            | ((long)(TileLoader.local_wall2 | TileLoader.local_ruin2) << {{2 * VISION_WIDTH}})
+            | ((long)(TileLoader.local_wall1 | TileLoader.local_ruin1) << {{VISION_WIDTH}})
+            | ((long)(TileLoader.local_wall0 | TileLoader.local_ruin0))
+        ) | localMask0) & 0b111111111111111111111111111111111111111111111011111110001111100L;
+
+        long passible1 = (~(
+              ((long)(TileLoader.local_wall8) << {{VISION_WIDTH}})
+            | ((long)(TileLoader.local_wall7))
+        ) | localMask1) & 0b001111100011111110L;
+
+        {% for dx in range(-1, 2) %}
+        {% for dy in range(-1, 2) %}
+        int dist{{dx+1}}{{dy+1}} = 10000;
+        {% endfor %}
+        {% endfor %}
+
+        // Run a BFS
+        long mask0AndPassible = mask0 & passible0;
+        long mask1AndPassible = mask1 & passible1;
+        bfsLoop: {
+            {% for iter in range(PATHING_ITERS) %}
+            {# Can you think of another way to do this? This kinda sucks. #}
+            adjIntersection = (localMask0 & adjTiles);
+
+            // if (adjIntersection == (passible0 & adjTiles)) break bfsLoop;
+            {% for dx in range(-1, 2) %}
+            {% for dy in range(-1, 2) %}
+            {% set x = dx + MIDDLE_OFFSET %}
+            {% set y = dy + MIDDLE_OFFSET %}
+            if ((0x{{ '{:08X}'.format(bitLeftShift(1, y * VISION_WIDTH + x)) }}L & adjIntersection) != 0) { 
+                dist{{dx+1}}{{dy+1}} = Math.min(dist{{dx+1}}{{dy+1}}, {{iter}});
+            }
+            {% endfor %}
+            {% endfor %}
+            localMask0 = (localMask0 | ((localMask0 << 1) & loverflow) | ((localMask0 >>> 1) & roverflow));
+            localMask1 = (localMask1 | ((localMask1 << 1) & loverflow) | ((localMask1 >>> 1) & roverflow));
+            temp = localMask0;
+            localMask0 = (localMask0 | (localMask0 << {{VISION_WIDTH}}) | (localMask0 >>> {{VISION_WIDTH}})
+                       | (localMask1 << {{VISION_WIDTH * (BOTTOM_MASK_ROWS - 1)}})) & mask0AndPassible;
+            localMask1 = (localMask1 | (localMask1 << {{VISION_WIDTH}}) | (localMask1 >>> {{VISION_WIDTH}})
+                       | (temp >>> {{VISION_WIDTH * (BOTTOM_MASK_ROWS - 1)}})) & mask1AndPassible;
+            {% endfor %}
+        }
+        
+
+        // Pick the best direction.
+        // One thing I noticed is if units are going in opposite directions,
+        // Then they'll hit each other at this step. Perhaps we should disallow stay-still moves?
+        String dists = "";
+        {% set dirY = [1, 1, 0, -1, -1, -1,  0,  1, 0] %}
+        {% set dirX = [0, 1, 1,  1,  0, -1, -1, -1, 0] %}
+        Direction bestDir = null;
+        int bestPaint = -10000;
+        int bestDist = 10000000;
+        boolean canMove;
+
+        {% for i in range(8) %}
+        {% set dir = directions[i] %}
+        {% set shortDir = shortDirections[i] %}
+        dists += {{ '"' + shortDir + '="' }} + dist{{dirX[i]+1}}{{dirY[i]+1}} + " ";
+        canMove = {{ 'rc.canMove(' ~ dir ~ ')' if dir != 'Direction.CENTER' else 'true' }};
+        if (canMove && dist{{dirX[i]+1}}{{dirY[i]+1}} < bestDist) {
+            bestDir = {{dir}};
+            bestDist = dist{{dirX[i]+1}}{{dirY[i]+1}};
+        }
+        {% endfor %}
+
+        rc.setIndicatorString("Left: " + (count - Clock.getBytecodeNum()));
+        if (bestDir != null && bestDir != Direction.CENTER)
+            rc.move(bestDir);
+        return;
+    }
+
+    public static void bug() throws GameActionException {
+        assert(bestBugDist < 10000);
+        assert(!currentBugDirection.equals(Direction.CENTER));
+        
+        MapLocation currentLoc = null, newLoc = currentBugPosition.add(currentBugDirection);
+        if (newLoc.distanceSquaredTo(myloc) <= GameConstants.VISION_RADIUS_SQUARED) {
+            if (rc.onTheMap(newLoc)) {
+                MapInfo mi = rc.senseMapInfo(newLoc);
+                if (mi.isPassable() || newLoc.equals(currentTarget)) {
+                    currentLoc = newLoc;
+                }
+            }
+        } else {
+            // We're starting to consider locations out of vision range,
+            // We must halt to prevent wrong decisions.
+            doneSimulating = true;
+            return;
+        }
+
+        if (currentLoc == null) {
+            leftLoop: {
+                {% for i in range(8) %}
+                newLoc = currentBugPosition.add(currentBugDirection.rotateLeft());
+                if (newLoc.distanceSquaredTo(myloc) <= GameConstants.VISION_RADIUS_SQUARED) {
+                    if (rc.onTheMap(newLoc)) {
+                        MapInfo mi = rc.senseMapInfo(newLoc);
+                        if (mi.isPassable() || newLoc.equals(currentTarget)) {
+                            currentLoc = newLoc;
+                            break leftLoop;
+                        }
+                    }
+                } else {
+                    // We're starting to consider locations out of vision range,
+                    // We must halt to prevent wrong decisions.
+                    doneSimulating = true;
+                    return;
+                }
+                
+                // If the new direction is not passible, set currentBugDirection to it.
+                currentBugDirection = currentBugDirection.rotateLeft();
+                {% endfor %}
+            }
+        }
+
+        if (currentLoc != null) {
+            assert(!currentLoc.equals(currentBugPosition));
+            currentBugPosition = currentLoc;
+            currentBugDirection = currentBugDirection.rotateRight();
+            int d = currentBugPosition.distanceSquaredTo(currentTarget);
+            if (d < bestBugDist) shouldBug = false;
+        } else {
+            System.out.println("Trapped in a box!");
+        }
+    }
+
+    public static void greedy() throws GameActionException {
+        int closestDist = currentBugPosition.distanceSquaredTo(currentTarget);
+        MapLocation bestLoc = null;
+        // Looping over all directions is kind of not great.
+        {% for dir in directions %}
+        {
+            MapLocation newLoc = currentBugPosition.add({{dir}});
+            if (newLoc.distanceSquaredTo(myloc) <= GameConstants.VISION_RADIUS_SQUARED) {
+                if (rc.onTheMap(newLoc)) {
+                    MapInfo mi = rc.senseMapInfo(newLoc);
+                    if (mi.isPassable() || newLoc.equals(currentTarget)) {
+                        int d = newLoc.distanceSquaredTo(currentTarget);
+                        if (d < closestDist) {
+                            closestDist = d;
+                            bestLoc = newLoc;
+                        }
+                    }
+                }
+            } else {
+                // This is kind of not great.
+                doneSimulating = true;
+                return;
+            }
+        }        
+        {% endfor %}
+
+        if (bestLoc != null) {
+            assert(bestLoc.distanceSquaredTo(currentTarget) < currentBugPosition.distanceSquaredTo(currentTarget));
+            assert(!currentBugPosition.equals(bestLoc));
+            currentBugPosition = bestLoc;
+            return;
+        } else {
+            bestBugDist = currentBugPosition.distanceSquaredTo(currentTarget);
+            currentBugDirection = currentBugPosition.directionTo(currentTarget);
+            assert(!currentBugDirection.equals(Direction.CENTER));
+            shouldBug = true;
+            return;
+        }
+    }
+
+    public static void resetPathing(MapLocation target) {
+        bestBugDist = 100000000;
+        shouldBug = false;
+        currentTarget = target;
+        currentBugDirection = null;
+        currentBugPosition = rc.getLocation();
+        pathLength = 0;
     }
 }
