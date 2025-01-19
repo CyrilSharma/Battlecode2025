@@ -148,7 +148,7 @@ public class Soldier {
 
     public static void makeResourcePatch() throws GameActionException {
         //TODO: if we see a conflict, stop building and mark with a 2 (can add later)
-        Pathing.pathTo(markedResource);
+        if (!rc.getLocation().equals(markedResource)) Pathing.pathTo(markedResource);
         moved = true;
         MapLocation goal = null;
         int bestDist = 1000000000;
@@ -265,6 +265,14 @@ public class Soldier {
     }
     
     public static void runTurn() throws GameActionException {
+        if (rc.getNumberTowers() < 25 && rc.getPaint() < 50) {
+            buildTower = TowerBuild.getRuin(near);
+            if (buildTower != null && TowerBuild.enoughPaint(buildTower)) {
+                TowerBuild.makeTower(buildTower);
+                return;
+            }
+        }
+
         if (shouldGoHome) {
             rc.setIndicatorString("Refueling");
             RefuelManager.refuel();

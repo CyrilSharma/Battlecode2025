@@ -25,6 +25,10 @@ public class Globals {
         updateIncomeTracker();
     }
 
+    public static boolean onMap(MapLocation loc) throws GameActionException {
+        return (loc.x >= 0 && loc.y >= 0 && loc.x < rc.getMapWidth() && loc.y < rc.getMapHeight());
+    }
+
     public static UnitType getTowerToBuild(MapLocation loc) throws GameActionException {
         int pt = 0, mt = 0;
         MapLocation tmp;
