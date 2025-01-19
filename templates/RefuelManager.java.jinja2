@@ -93,6 +93,32 @@ public class RefuelManager {
         }
     }
 
+    public static void carefullyGoHome() throws GameActionException {
+        rc.setIndicatorString("Going home... safely...");
+        SquareManager.computePaintPenalties();
+        MapLocation myloc = rc.getLocation();
+
+        String penalties = "";
+        Direction bestDir = null;
+        int bestDist = 10000000;
+        {% for di in range(-1, 2) %}
+        {% for dj in range(-1, 2) %}
+        {
+            int dist = SquareManager.m{{di+2}}{{dj+2}}.distanceSquaredTo(home);
+            Direction dir = myloc.directionTo(SquareManager.m{{di+2}}{{dj+2}});
+            penalties += ("" + dir + "=" + SquareManager.penalty{{di+2}}{{dj+2}} + " ");
+            if (SquareManager.penalty{{di+2}}{{dj+2}} <= 1 && dist < bestDist && rc.canMove(dir)) {
+                bestDist = dist;
+                bestDir = dir;
+            }
+        }
+        {% endfor %}
+        {% endfor %}
+
+        rc.setIndicatorString(penalties);
+        if (bestDir != null) rc.move(bestDir);
+    }
+
     public static void findPaintTower() throws GameActionException {
         double bestForce = 100000000;
         double currentForce = 0;

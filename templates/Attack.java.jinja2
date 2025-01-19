@@ -1,6 +1,9 @@
 package current;
 import battlecode.common.*;
 
+{% set dirY = [1, 1, 0, -1, -1, -1,  0,  1, 0] %}
+{% set dirX = [0, 1, 1,  1,  0, -1, -1, -1, 0] %}
+
 public class Attack {
     public static RobotController rc;
 
@@ -103,6 +106,7 @@ public class Attack {
     public static void {{type}}AttackMicro() throws GameActionException {
         {{type}}TryAttack();
         MapLocation myloc = rc.getLocation();
+        SquareManager.computePaintPenalties();
         {% for i in range(9) -%}
         {{ initTarget(type, i) | indent(4) }}
         {%- endfor -%}
@@ -125,19 +129,24 @@ public class Attack {
         {# {% for i in range(0, 9) -%}
         {% set dir = shortDirections[i] %}
         {% debug('minDistToEnemy_' ~ dir, 'targetLoc_' ~ dir ~ '.x', 'canMove_' ~ dir,
-                 'targetLoc_' ~ dir ~ '.y', 'myPaintDmg_' ~ dir, 'paintDmgAttackRange_' ~ dir) %}
+                 'targetLoc_' ~ dir ~ '.y', 'penalty_' ~ dir, 'healthDmgAttackRange_' ~ dir,
+                 'myHealthDmg_' ~ dir) %}
         {% endfor %} #}
 
         boolean bestWins = false;
         Direction bestDir = {{ directions[0] }};
-        {{ initTargetWithSuffix(type, dir=directions[0], suffix='best') | indent(4) }}
+        {{ initTargetWithSuffix(type, i=0, suffix='best') | indent(4) }}
+        
+        {{ copy(type, 'best', shortDirections[0]) | indent(4) -}}
         {% for i in range(1, 9) -%}
         {{ chooseBest(type, i) | indent(4) }}
         {% endfor %}
 
         {# {% set dir = 'best' %}
         {% debug('minDistToEnemy_' ~ dir, 'targetLoc_' ~ dir ~ '.x', 'canMove_' ~ dir,
-                 'targetLoc_' ~ dir ~ '.y', 'myPaintDmg_' ~ dir, 'paintDmgAttackRange_' ~ dir) %}
+                 'targetLoc_' ~ dir ~ '.y', 'penalty_' ~ dir, 'healthDmgAttackRange_' ~ dir,
+                 'myHealthDmg_' ~ dir) %}
+        System.out.println("Chose: " + bestDir);
         System.out.println("\n"); #}
 
         if (rc.canMove(bestDir)) {
@@ -161,11 +170,17 @@ public class Attack {
             bestWins = (bestHealthDmgDiff < otherHealthDmgDiff);
             break {{label}};
         }
-        if (paint_{{best}}.isAlly() != paint_{{dir}}.isAlly()) {
-            bestWins = paint_{{best}}.isAlly();
+
+        if (penalty_{{best}} != penalty_{{dir}}) {
+            bestWins = penalty_{{best}} < penalty_{{dir}};
             break {{label}};
         }
-        bestWins = (minDistToEnemy_{{best}} <= minDistToEnemy_{{dir}});
+
+        if (actionReady) {
+            bestWins = (minDistToEnemy_{{best}} <= minDistToEnemy_{{dir}});
+        } else {
+            bestWins = (minDistToEnemy_{{best}} >= minDistToEnemy_{{dir}});
+        }
         break {{label}};
     }
     {# We can get rid of the copy if we use a switch.  #}
@@ -226,35 +241,27 @@ public class Attack {
     {% endmacro %}
     /* ################## ADD ENEMY #################### */
 
-    /* TODO: Allow moving on enemy paint? */
     /*------------------ INIT TARGET --------------------*/
     {%- macro initTarget(type, i) -%}
-    {{ initTargetWithSuffix(type, dir=directions[i], suffix=shortDirections[i]) }}
+    {{ initTargetWithSuffix(type, i=i, suffix=shortDirections[i]) }}
     {% endmacro -%}
 
-    {%- macro initTargetWithSuffix(type, dir, suffix) -%}
+    {%- macro initTargetWithSuffix(type, i, suffix) -%}
+    {%- set dir = directions[i] -%}
     {%- set val = 'true' if dir == 'Direction.CENTER' else ('rc.canMove(' ~ dir ~ ')' ) -%}
-    MapLocation targetLoc_{{suffix}} = myloc.add({{ dir }});
+    MapLocation targetLoc_{{suffix}} = SquareManager.m{{dirX[i]+2}}{{dirY[i]+2}};
     boolean canMove_{{suffix}} = ({{val}});
-    PaintType paint_{{suffix}} = PaintType.ENEMY_PRIMARY;
-    if (rc.canSenseLocation(targetLoc_{{suffix}})) {
-        paint_{{suffix}} = rc.senseMapInfo(targetLoc_{{suffix}}).getPaint();
-        {# switch (rc.senseMapInfo(targetLoc_{{suffix}}).getPaint()) {
-             case PaintType.ENEMY_PRIMARY -> canMove_{{suffix}} = false;
-             case PaintType.ENEMY_SECONDARY -> canMove_{{suffix}} = false;
-             default -> {}
-        } #}
-    }
     double healthDmgAttackRange_{{suffix}} = 0;
     double myHealthDmg_{{suffix}} = 0;
     int minDistToEnemy_{{suffix}} = 100000;
+    int penalty_{{suffix}} = SquareManager.penalty{{dirX[i]+2}}{{dirY[i]+2}};
     {% endmacro -%}
     /* ################## INIT TARGET #################### */
     
     /*------------------ COPY --------------------*/
     {# WARNING THIS MUST BE UPDATED OR MICRO WILL HAVE BUGS #}
     {%- macro copy(type, dest, src) -%}
-    {%- for attribute in ['targetLoc', 'canMove', 'healthDmgAttackRange', 'myHealthDmg', 'minDistToEnemy', 'paint'] -%}
+    {%- for attribute in ['targetLoc', 'canMove', 'healthDmgAttackRange', 'myHealthDmg', 'minDistToEnemy', 'penalty'] -%}
     {{attribute}}_{{dest}} = {{attribute}}_{{src}};
     {% endfor -%}
     {% endmacro -%}

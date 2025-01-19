@@ -1,0 +1,97 @@
+package current;
+import battlecode.common.*;
+
+public class SquareManager {
+    public static RobotController rc;
+    public static void init(RobotController rc) {
+        SquareManager.rc = rc;
+    } 
+
+    public static MapLocation myloc = null;
+
+    {% for di in range(-2, 3) %}
+    {% for dj in range(-2, 3) %}
+    {% set i = di + 2 %}
+    {% set j = dj + 2 %}
+    public static MapLocation m{{i}}{{j}} = null;
+    public static boolean canSense{{i}}{{j}} = false;
+    public static MapInfo info{{i}}{{j}} = null;
+    public static RobotInfo r{{i}}{{j}} = null;
+    public static boolean friend{{i}}{{j}} = false;
+    public static int penalty{{i}}{{j}} = 0;
+    public static int adjacent{{i}}{{j}} = 0;
+    {% endfor %}
+    {% endfor %}
+
+    public static void run() throws GameActionException {
+        myloc = rc.getLocation();
+        loadSquaresDone = false;
+        computeAllyAdjacencyDone = false;
+        computePaintPenaltiesDone = false;
+    }
+
+    public static boolean loadSquaresDone = false;
+    public static void loadSquares() throws GameActionException {
+        if (loadSquaresDone) return;
+        {% for di in range(-2, 3) %}
+        {% for dj in range(-2, 3) %}
+        {% set i = di + 2 %}
+        {% set j = dj + 2 %}
+        m{{i}}{{j}} = new MapLocation(myloc.x + {{di}}, myloc.y + {{dj}});
+        canSense{{i}}{{j}} = rc.canSenseLocation(m{{i}}{{j}});
+        if (canSense{{i}}{{j}}) {
+            info{{i}}{{j}} = rc.senseMapInfo(m{{i}}{{j}}); 
+            r{{i}}{{j}} = rc.senseRobotAtLocation(m{{i}}{{j}});
+            friend{{i}}{{j}} = (r{{i}}{{j}} != null) ? r{{i}}{{j}}.team == rc.getTeam() : false;
+        } else {
+            info{{i}}{{j}} = null; 
+            r{{i}}{{j}} = null;
+            friend{{i}}{{j}} = false;
+        }
+        {% endfor %}
+        {% endfor %}
+        loadSquaresDone = true;
+    }
+
+    public static boolean computeAllyAdjacencyDone = false;
+    public static void computeAllyAdjacency() throws GameActionException {
+        if (computeAllyAdjacencyDone) return;
+        loadSquares();
+        {% for di in range(-1, 2) %}
+        {% for dj in range(-1, 2) %}
+        {   
+            adjacent{{di+2}}{{dj+2}} = 0;
+            {% for dk in range(-1, 2) %}
+            {% for dl in range(-1, 2) %}
+            {% if (di + dk) != 0 or (dj + dl) != 0 %}
+            if (friend{{di + dk + 2}}{{dj + dl + 2}}) 
+                ++adjacent{{di+2}}{{dj+2}};
+            {% endif %}
+            {% endfor %}
+            {% endfor %}
+        }
+        {% endfor %}
+        {% endfor %}
+        computeAllyAdjacencyDone = true;
+    }
+
+    public static boolean computePaintPenaltiesDone = false;
+    public static void computePaintPenalties() throws GameActionException {
+        if (computePaintPenaltiesDone) return;
+        computeAllyAdjacency();
+        {% for di in range(-1, 2) %}
+        {% for dj in range(-1, 2) %}
+        {
+            if (canSense{{di+2}}{{dj+2}}) {
+                penalty{{di+2}}{{dj+2}} = switch (info{{di+2}}{{dj+2}}.getPaint()) {
+                    case ENEMY_PRIMARY, ENEMY_SECONDARY -> 2 + 2 * adjacent{{di+2}}{{dj+2}};
+                    case ALLY_PRIMARY, ALLY_SECONDARY -> adjacent{{di+2}}{{dj+2}};
+                    case EMPTY -> 1 + adjacent{{di+2}}{{dj+2}};
+                };
+            }
+        }
+        {% endfor %}
+        {% endfor %}
+        computePaintPenaltiesDone = true;
+    }
+}
