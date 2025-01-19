@@ -15,11 +15,9 @@ public class Tower {
         int money = rc.getMoney();
         int round = rc.getRoundNum();
         if (round < 5) {
-            if (rc.getMoney() <= GameConstants.INITIAL_TEAM_MONEY) {
-                return UnitType.SOLDIER;
-            } else {
-                return UnitType.MOPPER;
-            }
+            int projected = money - UnitType.SOLDIER.moneyCost;
+            if (projected <= (GameConstants.INITIAL_TEAM_MONEY - (4 * UnitType.SOLDIER.moneyCost))) return null;
+            return UnitType.SOLDIER;
         } else if (money < 2000) {
             if ((round % 50) <= 40) return UnitType.SOLDIER;
             else return UnitType.MOPPER;
@@ -40,6 +38,7 @@ public class Tower {
         if (Globals.shouldStallForIncome()) return;
         
         UnitType t = getUnitType();
+        if (t == null) return;
         if (rc.getPaint() < t.paintCost) return;
         
 
