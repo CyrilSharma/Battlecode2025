@@ -27,7 +27,6 @@ public class Tower {
             if ((round % 50) > 25) return UnitType.SPLASHER;
             else return UnitType.SOLDIER;
         }
-        //return UnitType.SOLDIER;
     }
 
     public static void run() throws GameActionException {
@@ -36,14 +35,20 @@ public class Tower {
         MapLocation nextLoc;
 
         towerTryAttack();
+
+        rc.setIndicatorString("Income is: " + Globals.getIncome() + " , " + Globals.lastMoney);
+        if (Globals.shouldStallForIncome()) return;
+        
+        UnitType t = getUnitType();
+        if (rc.getPaint() < t.paintCost) return;
+        
+
         int lim = 10;
         if (rc.getMapHeight() * rc.getMapWidth() <= 600) lim = 50;
         if (rc.getRoundNum() > lim) {
-            if(rc.getMoney() < 1250) return;
-            if(rc.getPaint() < 200) return;
+            if (rc.getMoney() < 1250) return;
         }
-
-        UnitType t = getUnitType();
+        
         loop: {
         {%- for direction in directions %}
             nextLoc = myloc.add({{ direction }});
@@ -92,19 +97,14 @@ public class Tower {
         }
 
         if (bestSplasherLoc != null) {
-            rc.setIndicatorString("Attacking Splasher!");
             rc.setIndicatorDot(bestSplasherLoc, 0, 0, 0);
             rc.attack(bestSplasherLoc);
         }  else if (bestSoldierLoc != null) {
-            rc.setIndicatorString("Attacking Soldier!");
             rc.setIndicatorDot(bestSoldierLoc, 0, 0, 0);
             rc.attack(bestSoldierLoc);
         } else if (bestNonSoldierLoc != null) {
-            rc.setIndicatorString("Attacking Other!");
             rc.setIndicatorDot(bestNonSoldierLoc, 0, 0, 0);
             rc.attack(bestNonSoldierLoc);
-        } else {
-            rc.setIndicatorString("Didn't Attack!");
         }
 
         if (rc.canAttack(null)) rc.attack(null);
