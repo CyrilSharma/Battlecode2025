@@ -65,6 +65,36 @@ public class TowerBuild {
         return needsChanges;
     }
 
+    public static boolean enoughPaint(MapLocation ruin) throws GameActionException {
+        MapLocation tmp;
+        UnitType t = Globals.getTowerToBuild(ruin);
+        boolean[][] pattern = rc.getTowerPattern(t);
+        RobotInfo tower = rc.senseRobotAtLocation(ruin);
+        int needsChanges = 0;
+        if (tower != null) return false;
+        {% for i in range(2, -3, -1) %}
+        {% for j in range(2, -3, -1) %}
+        {% if i != 0 or j != 0 %}
+        tmp = new MapLocation(ruin.x + {{i}}, ruin.y + {{j}});
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            switch (mi.getPaint()) {
+                case ENEMY_SECONDARY, ENEMY_PRIMARY: return false;
+                default: {
+                    boolean isSecondary = (mi.getPaint() == PaintType.ALLY_SECONDARY);
+                    boolean targetSecondary = pattern[{{i + 2}}][{{j + 2}}];
+                    if ((mi.getPaint() == PaintType.EMPTY) || (isSecondary != targetSecondary)) {
+                        needsChanges += 5;
+                    }
+                }
+            }
+        }
+        {% endif %}
+        {% endfor %}
+        {% endfor %}
+        return (rc.getPaint() - needsChanges) >= 10;
+    }
+
     public static boolean seeTaintedRuin(MapLocation ruin) throws GameActionException {
         MapLocation tmp;
         UnitType t = Globals.getTowerToBuild(ruin);
