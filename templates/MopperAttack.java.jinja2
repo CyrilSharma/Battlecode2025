@@ -10,7 +10,7 @@ public class MopperAttack {
     {% endfor -%}
 
     public static void init(RobotController rc) {
-        Attack.rc = rc;
+        MopperAttack.rc = rc;
         {% for attribute in copiedAttributes -%}
         mopper{{capitalizeFirstLetter(attribute)}} = UnitType.MOPPER.{{attribute}};
         {% endfor %}
@@ -27,6 +27,29 @@ public class MopperAttack {
     }
 
     public static void mopperTryAttack() throws GameActionException {
+        if ((rc.getPaint() < (UnitType.MOPPER.paintCapacity >> 1))
+         || (Globals.enemies.length == 1)) {
+            mopperHealAttack();
+        } else {
+            mopperMopAttack();
+        }
+    }
+
+    public static void mopperHealAttack() throws GameActionException {
+        for (int i = Globals.enemies.length; --i >= 0; ) {
+            switch (Globals.enemies[i].type) {
+                case SOLDIER, MOPPER, SPLASHER: {
+                    if (rc.canAttack(Globals.enemies[i].location)) {
+                        rc.attack(Globals.enemies[i].location);
+                        return;
+                    }
+                }
+                default: continue;
+            }
+        }
+    }
+
+    public static void mopperMopAttack() throws GameActionException {
         if (!rc.isActionReady()) return;
         MapLocation myloc = rc.getLocation();
         int x = myloc.x, y = myloc.y;
@@ -37,7 +60,8 @@ public class MopperAttack {
         boolean canSense{{i+3}}{{j+3}} = rc.canSenseLocation(mloc{{i+3}}{{j+3}});
         if (canSense{{i+3}}{{j+3}}) {
             RobotInfo r = rc.senseRobotAtLocation( mloc{{i+3}}{{j+3}});
-            if (r != null && r.team != rc.getTeam()) enemy{{i+3}}{{j+3}} = true;
+            if (r != null && r.team != rc.getTeam() && r.paintAmount != 0)
+                enemy{{i+3}}{{j+3}} = true;
         }
         {% endfor %}
         {% endfor %}

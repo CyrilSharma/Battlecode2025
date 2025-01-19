@@ -73,16 +73,16 @@ public class Mopper {
 
     public static void runTurn() throws GameActionException {
         if (shouldGoHome) { 
-            rc.setIndicatorString("Refueling");
-            RefuelManager.refuel();
-            return;
+            // rc.setIndicatorString("Refueling");
+            // RefuelManager.refuel();
+            // return;
+            RefuelManager.findPaintTower();
         }
-        else if (MopperAttack.shouldMopperMicro()) {
+        if (MopperAttack.shouldMopperMicro()) {
             rc.setIndicatorString("Mopping");
             MopperAttack.mopperAttackMicro();
             return;
-        }
-        else if (rc.getNumberTowers() < 25){
+        } else if (rc.getNumberTowers() < 25){
             MapLocation buildTower = TowerBuild.getRuin(near);
             if (buildTower != null) {
                 TowerBuild.makeTower(buildTower);
@@ -91,7 +91,8 @@ public class Mopper {
 
         helpPattern(near);
         
-        Explore.exploreOnPaint(near);
+        // Explore.exploreOnPaint(near);
+        RefuelManager.findPaintTower();
     }
 
     public static void postTurn() throws GameActionException {

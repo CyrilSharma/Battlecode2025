@@ -18,8 +18,10 @@ public class Tower {
             int projected = money - UnitType.SOLDIER.moneyCost;
             if (projected <= (GameConstants.INITIAL_TEAM_MONEY - (4 * UnitType.SOLDIER.moneyCost))) return null;
             return UnitType.SOLDIER;
-        } else if (money < 2000) {
-            if ((round % 50) <= 40) return UnitType.SOLDIER;
+        }
+        
+        else if (money < 2000) {
+            if ((round % 50) <= 25) return UnitType.SOLDIER;
             else return UnitType.MOPPER;
         } else {
             if ((round % 50) > 25) return UnitType.SPLASHER;
