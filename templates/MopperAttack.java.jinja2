@@ -1,124 +1,96 @@
 package current;
 import battlecode.common.*;
 
-public class Attack {
+public class MopperAttack {
     public static RobotController rc;
 
-    {% set copiedAttributes = ['actionRadiusSquared', 'paintCapacity', 'actionCooldown', 'attackStrength', 'aoeAttackStrength']%}
-    {% for unit in ['soldier', 'splasher'] -%}
+    {% set copiedAttributes = ['actionRadiusSquared', 'paintCapacity', 'actionCooldown']%}
     {% for attribute in copiedAttributes -%}
-    public static int {{unit}}{{capitalizeFirstLetter(attribute)}};
-    {% endfor -%}
+    public static int mopper{{capitalizeFirstLetter(attribute)}};
     {% endfor -%}
 
     public static void init(RobotController rc) {
         Attack.rc = rc;
-        {% for unit in ['soldier', 'splasher'] -%}
         {% for attribute in copiedAttributes -%}
-        {{unit}}{{capitalizeFirstLetter(attribute)}} = UnitType.{{unit.upper()}}.{{attribute}};
-        {% endfor -%}
+        mopper{{capitalizeFirstLetter(attribute)}} = UnitType.MOPPER.{{attribute}};
         {% endfor %}
     }
 
-    public static boolean shouldSoldierMicro() throws GameActionException {
+    public static boolean shouldMopperMicro() throws GameActionException {
         for (int i = Globals.enemies.length; --i >= 0; ) {
             switch (Globals.enemies[i].type) {
-                case SOLDIER, MOPPER, SPLASHER: continue;
+                case SOLDIER, MOPPER, SPLASHER: return true;
                 default: return true;
             }
         }
         return false;
     }
 
-    public static void soldierTryAttack() throws GameActionException {
-        for (int i = Globals.enemies.length; --i >= 0;) {
-            RobotInfo enemy = Globals.enemies[i];
-            switch (enemy.type) {
-                case SOLDIER, SPLASHER, MOPPER: continue;
-                default: {
-                    MapLocation loc = enemy.location;
-                    if (rc.canAttack(loc)) {
-                        rc.attack(loc);
-                        return;
-                    }
-                }
-            }
-        }
-    }
-
-    public static boolean shouldSplasherMicro() throws GameActionException {
-        // Only activate micro if you can attack a tower.
-        for (int i = Globals.enemies.length; --i >= 0; ) {
-            switch (Globals.enemies[i].type) {
-                case SOLDIER, MOPPER, SPLASHER: continue;
-                default: return true;
-            }
-        }
-        return false;
-    }
-
-    public static void splasherTryAttack() throws GameActionException {
-        if (!rc.isActionReady() || rc.getPaint() < (UnitType.SPLASHER.paintCapacity >> 2)) return;
+    public static void mopperTryAttack() throws GameActionException {
+        if (!rc.isActionReady()) return;
         MapLocation myloc = rc.getLocation();
         int x = myloc.x, y = myloc.y;
-        MapLocation bestLoc = null;
-        int count = 0, bestCount = -1;
-
         {% for i in range(-3, 4, 1) %}
         {% for j in range(-3, 4, 1) %}
+        boolean enemy{{i+3}}{{j+3}} = false;
         MapLocation mloc{{i+3}}{{j+3}} = new MapLocation(x + {{ i }}, y + {{ j }});
-        boolean hasTower{{i+3}}{{j+3}} = false;
-        if (rc.canSenseLocation(mloc{{i+3}}{{j+3}})) {
-            RobotInfo r{{i+3}}{{j+3}} = rc.senseRobotAtLocation(mloc{{i+3}}{{j+3}});
-            if ( r{{i+3}}{{j+3}} != null &&  r{{i+3}}{{j+3}}.team != rc.getTeam() && Globals.isTower(r{{i+3}}{{j+3}}.type)) {
-                hasTower{{i+3}}{{j+3}} = true;
-            }
+        boolean canSense{{i+3}}{{j+3}} = rc.canSenseLocation(mloc{{i+3}}{{j+3}});
+        if (canSense{{i+3}}{{j+3}}) {
+            RobotInfo r = rc.senseRobotAtLocation( mloc{{i+3}}{{j+3}});
+            if (r != null && r.team != rc.getTeam()) enemy{{i+3}}{{j+3}} = true;
         }
         {% endfor %}
         {% endfor %}
 
-        {% for i in range(-2, 3, 1) %}
-        {% for j in range(-2, 3, 1) %}
-        if (rc.canAttack(mloc{{i+3}}{{j+3}})) {
+        MapLocation bestLoc = null;
+        int count = 0, bestCount = -1;
+        {% for bx in range(-1, 2, 1) %}
+        {% for by in range(-1, 2, 1) %}
+        {% if not (bx == 0 and by == 0) %}
+        if (canSense{{bx+3}}{{by+3}}) {
             count = 0;
             {% for k in range(-1, 2, 1) %}
-            {% for l in range(-1, 2, 1) %} 
-            if (hasTower{{i+k+3}}{{j+l+3}}) ++count;
+            {% for l in range(1, 3, 1) %} 
+            {% set x = (l * bx) + (-by) * k %}
+            {% set y = (l * by) + (bx) * k %}
+            if (enemy{{x+3}}{{y+3}}) ++count;
             {% endfor %}
             {% endfor %}
             if (count > bestCount) {
-                bestLoc = mloc{{i+3}}{{j+3}};
+                bestLoc = mloc{{bx+3}}{{by+3}};
                 bestCount = count;
             }
         }
+        {% endif %}
         {% endfor %}
         {% endfor %}
 
+        rc.setIndicatorString("bestCount: " + bestCount + " " + bestLoc.x + " " + bestLoc.y);
         if (bestCount >= 1) {
-            rc.attack(bestLoc);
+            rc.mopSwing(myloc.directionTo(bestLoc));
         }
     }
     
-    {% macro attackMicro(type) -%}
-    public static void {{type}}AttackMicro() throws GameActionException {
-        {{type}}TryAttack();
+    {% macro attackMicro() -%}
+    public static void mopperAttackMicro() throws GameActionException {
+        mopperTryAttack();
         MapLocation myloc = rc.getLocation();
         {% for i in range(9) -%}
-        {{ initTarget(type, i) | indent(4) }}
+        {{ initTarget(i) | indent(4) }}
         {%- endfor -%}
 
         boolean actionReady = rc.isActionReady();
         for (int i = Globals.friends.length; --i >= 0; ) {
             RobotInfo robot = Globals.friends[i];
             {% for i in range(9) -%}
-            {{ addAlly(type, i) | indent(8) -}}
+            {{ addAlly(i) | indent(8) -}}
             {% endfor %}
         }
 
         for (int i = Globals.enemies.length; --i >= 0; ) {
             RobotInfo robot = Globals.enemies[i];
             {% for i in range(9) -%}
-            {{ addEnemy(type, i) | indent(8) -}}
+            {{ addEnemy(i) | indent(8) -}}
             {% endfor %}
         }
 
@@ -130,9 +102,10 @@ public class Attack {
 
         boolean bestWins = false;
         Direction bestDir = {{ directions[0] }};
-        {{ initTargetWithSuffix(type, dir=directions[0], suffix='best') | indent(4) }}
+        {{ initTargetWithSuffix(0, suffix='best') | indent(4) }}
+        {{ copy(dest='best', src=shortDirections[0]) }}
         {% for i in range(1, 9) -%}
-        {{ chooseBest(type, i) | indent(4) }}
+        {{ chooseBest(i) | indent(4) }}
         {% endfor %}
 
         {# {% set dir = 'best' %}
@@ -143,22 +116,22 @@ public class Attack {
         if (rc.canMove(bestDir)) {
             rc.move(bestDir);
         }
-        {{type}}TryAttack();
+        mopperTryAttack();
     }
     {% endmacro -%}
 
     /*------------------ CHOOSE BEST --------------------*/
-    {%- macro chooseBest(type, i) -%}
+    {%- macro chooseBest(i) -%}
     {%- set best = 'best' -%}
     {%- set dir = shortDirections[i] -%}
     {%- set label = 'chooseBest' ~ _ ~ dir %}
     bestWins = canMove_{{best}};
     {{label}}: {
         if (!canMove_{{dir}} || !canMove_{{best}}) break {{label}};
-        double bestHealthDmgDiff = healthDmgAttackRange_{{best}} - myHealthDmg_{{best}};
-        double otherHealthDmgDiff = healthDmgAttackRange_{{dir}} - myHealthDmg_{{dir}};
-        if (bestHealthDmgDiff != otherHealthDmgDiff) {
-            bestWins = (bestHealthDmgDiff < otherHealthDmgDiff);
+        double bestPaintDmgDiff = paintDmgAttackRange_{{best}} - myPaintDmg_{{best}};
+        double otherPaintDmgDiff = paintDmgAttackRange_{{dir}} - myPaintDmg_{{dir}};
+        if (bestPaintDmgDiff != otherPaintDmgDiff) {
+            bestWins = (bestPaintDmgDiff < otherPaintDmgDiff);
             break {{label}};
         }
         if (paint_{{best}}.isAlly() != paint_{{dir}}.isAlly()) {
@@ -171,7 +144,7 @@ public class Attack {
     {# We can get rid of the copy if we use a switch.  #}
     {# Just trying to get something down at the moment. #}
     if (!bestWins) {
-        {{ copy(type, 'best', dir) | indent(4) -}}
+        {{ copy('best', dir) | indent(4) -}}
         bestDir = {{ directions[i] }};
     }
     {% endmacro -%}
@@ -179,20 +152,17 @@ public class Attack {
 
 
     /*------------------ ADD ALLY --------------------*/
-    {%- macro addAlly(type, i) -%}
+    {%- macro addAlly(i) -%}
     {%- set robotVar = 'robot' -%}
     {%- set dir = shortDirections[i] -%}
     {%- set label = 'addAlly' ~ _ ~ dir -%}
-    {{label}}: {
-        {# if (!canMove_{{ dir }}) break {{label}};
-        int d = targetLoc_{{dir}}.distanceSquaredTo({{robotVar}}.location); #}
-    }
+    {{label}}: {}
     {% endmacro -%}
     /* ################## ADD ALLY #################### */
 
     /*------------------ ADD ENEMY --------------------*/
     {# TODO: Factor into seperate pieces for each unit. #}
-    {%- macro addEnemy(type, i) -%}
+    {%- macro addEnemy(i) -%}
     {%- set robotVar = 'robot' -%}
     {%- set dir = shortDirections[i] -%}
     {%- set label = 'addEnemy' ~ _ ~ dir %}
@@ -200,23 +170,34 @@ public class Attack {
         if (!canMove_{{dir}}) break {{label}};
         int d = targetLoc_{{dir}}.distanceSquaredTo({{robotVar}}.location);
         switch (robot.type) {
+            case SPLASHER: {
+                if (actionReady && d <= mopperActionRadiusSquared) {
+                    myPaintDmg_{{dir}} = GameConstants.MOPPER_SWING_PAINT_DEPLETION;
+                }
+                if (d < minDistToEnemy_{{dir}}) minDistToEnemy_{{dir}} = d;
+                break {{label}};
+            }
+            case SOLDIER: {
+                if (actionReady && d <= mopperActionRadiusSquared) {
+                    myPaintDmg_{{dir}} = GameConstants.MOPPER_SWING_PAINT_DEPLETION;
+                }
+                if (d < minDistToEnemy_{{dir}}) minDistToEnemy_{{dir}} = d;
+                break {{label}};
+            }
+            case MOPPER: {
+                if (actionReady && d <= mopperActionRadiusSquared) {
+                    myPaintDmg_{{dir}} = GameConstants.MOPPER_SWING_PAINT_DEPLETION;
+                    paintDmgAttackRange_{{dir}} = GameConstants.MOPPER_SWING_PAINT_DEPLETION;
+                }
+                if (d < minDistToEnemy_{{dir}}) minDistToEnemy_{{dir}} = d;
+                break {{label}};
+            }
             {% for tower in [
                 'LEVEL_ONE_DEFENSE_TOWER', 'LEVEL_ONE_MONEY_TOWER', 'LEVEL_ONE_PAINT_TOWER',
                 'LEVEL_THREE_DEFENSE_TOWER', 'LEVEL_THREE_MONEY_TOWER', 'LEVEL_THREE_PAINT_TOWER',
                 'LEVEL_TWO_DEFENSE_TOWER', 'LEVEL_TWO_MONEY_TOWER', 'LEVEL_TWO_PAINT_TOWER'] -%}
             case {{tower}}: {
-                if (actionReady && d <= {{type}}ActionRadiusSquared) {
-                    {% if type == 'splasher' %}
-                    myHealthDmg_{{dir}} = {{type}}AoeAttackStrength;
-                    {% else %}
-                    myHealthDmg_{{dir}} = {{type}}AttackStrength;
-                    {% endif %}
-                }
-                if (d <= UnitType.{{tower}}.actionRadiusSquared) {
-                    // Should have another one for AOE damage.
-                    healthDmgAttackRange_{{dir}} += UnitType.{{tower}}.attackStrength;
-                }
-                if (d < minDistToEnemy_{{dir}}) minDistToEnemy_{{dir}} = d;
+                if (d <= UnitType.{{tower}}.actionRadiusSquared) canMove_{{dir}} = false;
                 break {{label}};
             }
             {% endfor %}
@@ -228,40 +209,34 @@ public class Attack {
 
     /* TODO: Allow moving on enemy paint? */
     /*------------------ INIT TARGET --------------------*/
-    {%- macro initTarget(type, i) -%}
-    {{ initTargetWithSuffix(type, dir=directions[i], suffix=shortDirections[i]) }}
+    {%- macro initTarget(i) -%}
+    {{ initTargetWithSuffix(i, suffix=shortDirections[i]) }}
     {% endmacro -%}
 
-    {%- macro initTargetWithSuffix(type, dir, suffix) -%}
+    {%- macro initTargetWithSuffix(i, suffix) -%}
+    {% set dir = directions[i] %}
     {%- set val = 'true' if dir == 'Direction.CENTER' else ('rc.canMove(' ~ dir ~ ')' ) -%}
     MapLocation targetLoc_{{suffix}} = myloc.add({{ dir }});
     boolean canMove_{{suffix}} = ({{val}});
     PaintType paint_{{suffix}} = PaintType.ENEMY_PRIMARY;
     if (rc.canSenseLocation(targetLoc_{{suffix}})) {
         paint_{{suffix}} = rc.senseMapInfo(targetLoc_{{suffix}}).getPaint();
-        {# switch (rc.senseMapInfo(targetLoc_{{suffix}}).getPaint()) {
-             case PaintType.ENEMY_PRIMARY -> canMove_{{suffix}} = false;
-             case PaintType.ENEMY_SECONDARY -> canMove_{{suffix}} = false;
-             default -> {}
-        } #}
     }
-    double healthDmgAttackRange_{{suffix}} = 0;
-    double myHealthDmg_{{suffix}} = 0;
+    double paintDmgAttackRange_{{suffix}} = 0;
+    double myPaintDmg_{{suffix}} = 0;
     int minDistToEnemy_{{suffix}} = 100000;
     {% endmacro -%}
     /* ################## INIT TARGET #################### */
     
     /*------------------ COPY --------------------*/
     {# WARNING THIS MUST BE UPDATED OR MICRO WILL HAVE BUGS #}
-    {%- macro copy(type, dest, src) -%}
-    {%- for attribute in ['targetLoc', 'canMove', 'healthDmgAttackRange', 'myHealthDmg', 'minDistToEnemy', 'paint'] -%}
+    {%- macro copy(dest, src) -%}
+    {%- for attribute in ['targetLoc', 'canMove', 'paintDmgAttackRange', 'myPaintDmg', 'minDistToEnemy', 'paint'] -%}
     {{attribute}}_{{dest}} = {{attribute}}_{{src}};
     {% endfor -%}
     {% endmacro -%}
     /* ################## COPY #################### */
 
-    {% for type in ['soldier', 'splasher'] %}
-    {{ attackMicro(type) }}
-    {% endfor %}
+    {{ attackMicro() }}
 
 }

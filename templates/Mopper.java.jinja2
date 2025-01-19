@@ -77,9 +77,9 @@ public class Mopper {
             RefuelManager.refuel();
             return;
         }
-        else if (Attack.shouldMopperMicro()) {
+        else if (MopperAttack.shouldMopperMicro()) {
             rc.setIndicatorString("Mopping");
-            Attack.mopperAttackMicro();
+            MopperAttack.mopperAttackMicro();
             return;
         }
         else if (rc.getNumberTowers() < 25){
