@@ -70,6 +70,7 @@ public class Pathing {
     public static void pathTo(MapLocation target) throws GameActionException {
         int count = Clock.getBytecodeNum();
         myloc = rc.getLocation();
+        if (myloc.equals(target)) return;
         rc.setIndicatorDot(target, 0, 0, 255);
         if (currentTarget == null || !target.equals(currentTarget)) {
             resetPathing(target);
