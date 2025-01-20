@@ -171,16 +171,12 @@ public class Attack {
             break {{label}};
         }
 
-        if (penalty_{{best}} != penalty_{{dir}}) {
-            bestWins = penalty_{{best}} < penalty_{{dir}};
+        if (minDistToEnemy_{{best}} != minDistToEnemy_{{dir}}) {
+            bestWins = (minDistToEnemy_{{best}} < minDistToEnemy_{{dir}});
             break {{label}};
         }
 
-        if (actionReady) {
-            bestWins = (minDistToEnemy_{{best}} <= minDistToEnemy_{{dir}});
-        } else {
-            bestWins = (minDistToEnemy_{{best}} >= minDistToEnemy_{{dir}});
-        }
+        bestWins = penalty_{{best}} <= penalty_{{dir}};
         break {{label}};
     }
     {# We can get rid of the copy if we use a switch.  #}

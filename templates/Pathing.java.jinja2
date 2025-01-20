@@ -197,6 +197,23 @@ public class Pathing {
         int bestDist = 10000000;
         boolean canMove;
 
+        {# {% for i in range(8) %}
+        {% set dir = directions[i] %}
+        {% set shortDir = shortDirections[i] %}
+        {
+            dists += {{ '"' + shortDir + '="' }} + dist{{dirX[i]+1}}{{dirY[i]+1}} + " ";
+            canMove = {{ 'rc.canMove(' ~ dir ~ ')' if dir != 'Direction.CENTER' else 'true' }};
+            MapLocation nloc = myloc.add({{dir}});
+            int nlocDist = currentBugPosition.distanceSquaredTo(nloc);
+            if (canMove && ((dist{{dirX[i]+1}}{{dirY[i]+1}} < bestDist) ||
+                            (dist{{dirX[i]+1}}{{dirY[i]+1}} == bestDist && nlocDist < bestDistSquared))) {
+                bestDir = {{dir}};
+                bestDist = dist{{dirX[i]+1}}{{dirY[i]+1}};
+                bestDistSquared = nlocDist;
+            }
+        }
+        {% endfor %} #}
+
         {% for i in range(8) %}
         {% set dir = directions[i] %}
         {% set shortDir = shortDirections[i] %}

@@ -45,7 +45,7 @@ public class Mopper {
                 case ENEMY_PRIMARY, ENEMY_SECONDARY -> {
                     MapLocation loc = mis[i].getMapLocation();
                     int d = loc.distanceSquaredTo(myloc);
-                    if (d < closest && (enemyTower == null || loc.distanceSquaredTo(enemyTower.location) > enemyTower.type.actionRadiusSquared)) {
+                    if (d < closest && (enemyTower == null || loc.distanceSquaredTo(enemyTower.location) > enemyTower.type.actionRadiusSquared + 20)) {
                         closest = d;
                         bestLoc = loc;
                     }
@@ -102,7 +102,7 @@ public class Mopper {
         if (bestLoc != null) {
             Pathing.pathTo(bestLoc);
             MapLocation newLoc = rc.getLocation();
-            rc.setIndicatorString("True Mop Target " + bestLoc + " " + myloc + " " + newLoc);
+            rc.setIndicatorString("True Mop Target " + bestLoc + " " + myloc + " " + newLoc + " " + mopTarget);
         }
     }
 
@@ -126,7 +126,7 @@ public class Mopper {
     }
 
     public static void runTurn() throws GameActionException {
-        if (shouldGoHome) { // && RefuelManager.homeState == RefuelManager.TOWER_PAINT
+        if (shouldGoHome && RefuelManager.homeState == RefuelManager.TOWER_PAINT) {
             rc.setIndicatorString("Refueling");
             RefuelManager.refuel();
             MopperAttack.mopperTryAttack();

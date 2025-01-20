@@ -174,6 +174,11 @@ public class MopperAttack {
     bestWins = canMove_{{best}};
     {{label}}: {
         if (!canMove_{{dir}} || !canMove_{{best}}) break {{label}};
+        if (inTowerRadius_{{best}} != inTowerRadius_{{dir}}) {
+            bestWins = !inTowerRadius_{{best}};
+            break {{label}};
+        }
+
         double bestPaintDmgDiff = paintDmgAttackRange_{{best}} - myPaintDmg_{{best}};
         double otherPaintDmgDiff = paintDmgAttackRange_{{dir}} - myPaintDmg_{{dir}};
         if (bestPaintDmgDiff != otherPaintDmgDiff) {
@@ -181,16 +186,12 @@ public class MopperAttack {
             break {{label}};
         }
 
-        if (penalty_{{best}} != penalty_{{dir}}) {
-            bestWins = penalty_{{best}} < penalty_{{dir}};
+        if (minDistToEnemy_{{best}} != minDistToEnemy_{{dir}}) {
+            bestWins = (minDistToEnemy_{{best}} < minDistToEnemy_{{dir}});
             break {{label}};
         }
 
-        if (actionReady) {
-            bestWins = (minDistToEnemy_{{best}} <= minDistToEnemy_{{dir}});
-        } else {
-            bestWins = (minDistToEnemy_{{best}} >= minDistToEnemy_{{dir}});
-        }
+        bestWins = penalty_{{best}} <= penalty_{{dir}};
         break {{label}};
     }
     {# We can get rid of the copy if we use a switch.  #}
@@ -220,10 +221,10 @@ public class MopperAttack {
     {%- set label = 'addEnemy' ~ _ ~ dir %}
     {{label}}: {
         if (!canMove_{{dir}}) break {{label}};
-        if (robot.paintAmount == 0) break {{label}};
         int d = targetLoc_{{dir}}.distanceSquaredTo({{robotVar}}.location);
         switch (robot.type) {
             case SPLASHER: {
+                if (robot.paintAmount == 0 ) break {{label}};
                 if (actionReady && d <= mopperDesiredActionRadiusSquared) {
                     myPaintDmg_{{dir}} = GameConstants.MOPPER_SWING_PAINT_DEPLETION;
                 }
@@ -231,6 +232,7 @@ public class MopperAttack {
                 break {{label}};
             }
             case SOLDIER: {
+                if (robot.paintAmount == 0 ) break {{label}};
                 if (actionReady && d <= mopperDesiredActionRadiusSquared) {
                     myPaintDmg_{{dir}} = GameConstants.MOPPER_SWING_PAINT_DEPLETION;
                 }
@@ -238,6 +240,7 @@ public class MopperAttack {
                 break {{label}};
             }
             case MOPPER: {
+                if (robot.paintAmount == 0 ) break {{label}};
                 if (actionReady && d <= mopperMaxActionRadiusSquared) {
                     myPaintDmg_{{dir}} = GameConstants.MOPPER_SWING_PAINT_DEPLETION;
                     paintDmgAttackRange_{{dir}} = GameConstants.MOPPER_SWING_PAINT_DEPLETION;
@@ -250,7 +253,7 @@ public class MopperAttack {
                 'LEVEL_THREE_DEFENSE_TOWER', 'LEVEL_THREE_MONEY_TOWER', 'LEVEL_THREE_PAINT_TOWER',
                 'LEVEL_TWO_DEFENSE_TOWER', 'LEVEL_TWO_MONEY_TOWER', 'LEVEL_TWO_PAINT_TOWER'] -%}
             case {{tower}}: {
-                if (d <= UnitType.{{tower}}.actionRadiusSquared) canMove_{{dir}} = false;
+                if (d <= UnitType.{{tower}}.actionRadiusSquared) inTowerRadius_{{dir}} = true;
                 break {{label}};
             }
             {% endfor %}
@@ -275,13 +278,14 @@ public class MopperAttack {
     double paintDmgAttackRange_{{suffix}} = 0;
     double myPaintDmg_{{suffix}} = 0;
     int minDistToEnemy_{{suffix}} = 100000;
+    boolean inTowerRadius_{{suffix}} = false;
     {% endmacro -%}
     /* ################## INIT TARGET #################### */
     
     /*------------------ COPY --------------------*/
     {# WARNING THIS MUST BE UPDATED OR MICRO WILL HAVE BUGS #}
     {%- macro copy(dest, src) -%}
-    {%- for attribute in ['targetLoc', 'canMove', 'paintDmgAttackRange', 'myPaintDmg', 'minDistToEnemy', 'penalty'] -%}
+    {%- for attribute in ['targetLoc', 'canMove', 'paintDmgAttackRange', 'myPaintDmg', 'minDistToEnemy', 'penalty', 'inTowerRadius'] -%}
     {{attribute}}_{{dest}} = {{attribute}}_{{src}};
     {% endfor -%}
     {% endmacro -%}

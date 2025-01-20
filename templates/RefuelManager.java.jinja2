@@ -75,7 +75,8 @@ public class RefuelManager {
             Pathing.pathTo(home);
         } else if (atHome && homeState == TOWER_PAINT) {
             rc.setIndicatorString("At home, refueling...");
-            Pathing.pathTo(home);
+            // Pathing.pathTo(home);
+            carefullyGoHome();
             RobotInfo r = rc.senseRobotAtLocation(home);
             if (r == null) { 
                 homeState = getTowerState(r);
