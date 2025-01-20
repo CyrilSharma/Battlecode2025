@@ -62,7 +62,9 @@ public class Attack {
         return false;
     }
 
-    public static void splasherTryAttack() throws GameActionException {
+    public static void splasherTryAttack() throws GameActionException {}
+
+    public static void _splasherTryAttack() throws GameActionException {
         if (!rc.isActionReady() || rc.getPaint() < (UnitType.SPLASHER.paintCapacity >> 2)) return;
         MapLocation myloc = rc.getLocation();
         int x = myloc.x, y = myloc.y;
@@ -218,13 +220,11 @@ public class Attack {
                 'LEVEL_THREE_DEFENSE_TOWER', 'LEVEL_THREE_MONEY_TOWER', 'LEVEL_THREE_PAINT_TOWER',
                 'LEVEL_TWO_DEFENSE_TOWER', 'LEVEL_TWO_MONEY_TOWER', 'LEVEL_TWO_PAINT_TOWER'] -%}
             case {{tower}}: {
+                {% if type == 'splasher' %}
                 if (actionReady && d <= {{type}}ActionRadiusSquared) {
-                    {% if type == 'splasher' %}
-                    myHealthDmg_{{dir}} = {{type}}AoeAttackStrength;
-                    {% else %}
                     myHealthDmg_{{dir}} = {{type}}AttackStrength;
-                    {% endif %}
                 }
+                {% endif %}
                 if (d <= UnitType.{{tower}}.actionRadiusSquared) {
                     // Should have another one for AOE damage.
                     healthDmgAttackRange_{{dir}} += UnitType.{{tower}}.attackStrength;
