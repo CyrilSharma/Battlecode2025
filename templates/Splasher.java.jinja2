@@ -10,6 +10,9 @@ public class Splasher {
     public static int paintCapacity = UnitType.SOLDIER.paintCapacity;
     public static int myPaint;
     public static boolean shouldGoHome = false;
+    public static MapLocation startingHome = null;
+    public static boolean reachedSymmetricTarget = false;
+    public static boolean lowHealth = false;
 
     public static void init(RobotController rc) {
         Splasher.rc = rc;
@@ -26,7 +29,12 @@ public class Splasher {
         myPaint = rc.getPaint();
 
         RefuelManager.setHome();
-        boolean lowHealth = (myPaint <= (paintCapacity >> 2));
+        if (startingHome == null) {
+            startingHome = RefuelManager.home;
+        }
+                
+
+        lowHealth = (myPaint <= (paintCapacity >> 1));
         if (lowHealth != shouldGoHome) {
             shouldGoHome = lowHealth;
             RefuelManager.reset();
@@ -42,7 +50,21 @@ public class Splasher {
             rc.setIndicatorString("Attacking");
             Attack.splasherAttackMicro();
             return;
+        } else if (SymmetryChecker.possibleSymmetries() < 3 && !reachedSymmetricTarget) {
+            rc.setIndicatorString("Symmetry is known! " + SymmetryChecker.getSymmetry());
+            MapLocation home = startingHome;
+            MapLocation target = null;
+            if (SymmetryChecker.HSYM != 0) {
+                target = new MapLocation(home.x, rc.getMapHeight() - home.y);
+            } else if (SymmetryChecker.VSYM != 0) {
+                target = new MapLocation(rc.getMapWidth() - home.x, home.y);
+            } else if (SymmetryChecker.RSYM != 0) {
+                target = new MapLocation(rc.getMapWidth() - home.x, rc.getMapHeight() - home.y);
+            };
+            if (myloc.distanceSquaredTo(target) <= 9) reachedSymmetricTarget = true;
+            Pathing.pathTo(target);
         } else {
+            rc.setIndicatorString("Exploring");
             Explore.explore(null);
         }
     }
@@ -52,9 +74,7 @@ public class Splasher {
     }
 
     public static void doAttack() throws GameActionException {
-        rc.setIndicatorString("Preparing to attack, but didn't");
-        if (!rc.isActionReady() || rc.getPaint() < (paintCapacity >> 2)) return;
-        rc.setIndicatorString("Running attack code...");
+        if (!rc.isActionReady() || lowHealth) return;
         MapLocation myloc = rc.getLocation();
         int x = myloc.x, y = myloc.y;
         MapLocation bestLoc = null;

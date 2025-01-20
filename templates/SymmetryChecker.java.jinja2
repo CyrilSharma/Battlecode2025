@@ -24,7 +24,11 @@ public class SymmetryChecker {
     }
 
     public static boolean isSymmetryKnown() {
-        return (VSYM + HSYM + RSYM) == 1;
+        return possibleSymmetries() == 1;
+    }
+
+    public static int possibleSymmetries() {
+        return (VSYM + HSYM + RSYM);
     }
 
     public static Symmetry getSymmetry() {

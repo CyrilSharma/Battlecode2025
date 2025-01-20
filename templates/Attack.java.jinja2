@@ -21,6 +21,8 @@ public class Attack {
         {{unit}}{{capitalizeFirstLetter(attribute)}} = UnitType.{{unit.upper()}}.{{attribute}};
         {% endfor -%}
         {% endfor %}
+
+        splasherActionRadiusSquared = 9;
     }
 
     public static boolean shouldSoldierMicro() throws GameActionException {
