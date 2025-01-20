@@ -46,10 +46,6 @@ public class Splasher {
             rc.setIndicatorString("Refueling");
             RefuelManager.refuel();
             return;
-        } else if (Attack.shouldSplasherMicro()) {
-            rc.setIndicatorString("Attacking");
-            Attack.splasherAttackMicro();
-            return;
         } else if (SymmetryChecker.possibleSymmetries() < 3 && !reachedSymmetricTarget) {
             rc.setIndicatorString("Symmetry is known! " + SymmetryChecker.getSymmetry());
             MapLocation home = startingHome;
@@ -62,7 +58,7 @@ public class Splasher {
                 target = new MapLocation(rc.getMapWidth() - home.x, rc.getMapHeight() - home.y);
             };
             if (myloc.distanceSquaredTo(target) <= 9) reachedSymmetricTarget = true;
-            Pathing.pathTo(target);
+            Pathing.safePathTo(target);
         } else {
             rc.setIndicatorString("Exploring");
             Explore.explore(null);

@@ -252,7 +252,7 @@ public class Pathing {
         }
         {% endfor %}
 
-        rc.setIndicatorString("dists = " + dists);
+        // rc.setIndicatorString("dists = " + dists);
         if (bestDir != null && bestDir != Direction.CENTER)
             rc.move(bestDir);
         return;
