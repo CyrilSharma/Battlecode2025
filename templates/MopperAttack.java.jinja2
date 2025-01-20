@@ -1,6 +1,9 @@
 package current;
 import battlecode.common.*;
 
+{% set dirY = [1, 1, 0, -1, -1, -1,  0,  1, 0] %}
+{% set dirX = [0, 1, 1,  1,  0, -1, -1, -1, 0] %}
+
 public class MopperAttack {
     public static RobotController rc;
 
@@ -102,9 +105,11 @@ public class MopperAttack {
     {% macro attackMicro() -%}
     public static void mopperAttackMicro() throws GameActionException {
         mopperTryAttack();
-        mopperDesiredActionRadiusSquared = (rc.getPaint() < (UnitType.MOPPER.paintCapacity >> 1)) ?
-            mopperActionRadiusSquared : 8;
+        {# mopperDesiredActionRadiusSquared = (rc.getPaint() < (UnitType.MOPPER.paintCapacity >> 1)) ?
+            mopperActionRadiusSquared : 8; #}
+        mopperDesiredActionRadiusSquared = mopperActionRadiusSquared;
 
+        SquareManager.computePaintPenalties();
         MapLocation myloc = rc.getLocation();
         {% for i in range(9) -%}
         {{ initTarget(i) | indent(4) }}
@@ -174,11 +179,17 @@ public class MopperAttack {
             bestWins = (bestPaintDmgDiff < otherPaintDmgDiff);
             break {{label}};
         }
-        if (paint_{{best}}.isAlly() != paint_{{dir}}.isAlly()) {
-            bestWins = paint_{{best}}.isAlly();
+
+        if (penalty_{{best}} != penalty_{{dir}}) {
+            bestWins = penalty_{{best}} < penalty_{{dir}};
             break {{label}};
         }
-        bestWins = (minDistToEnemy_{{best}} <= minDistToEnemy_{{dir}});
+
+        if (actionReady) {
+            bestWins = (minDistToEnemy_{{best}} <= minDistToEnemy_{{dir}});
+        } else {
+            bestWins = (minDistToEnemy_{{best}} >= minDistToEnemy_{{dir}});
+        }
         break {{label}};
     }
     {# We can get rid of the copy if we use a switch.  #}
@@ -257,12 +268,9 @@ public class MopperAttack {
     {%- macro initTargetWithSuffix(i, suffix) -%}
     {% set dir = directions[i] %}
     {%- set val = 'true' if dir == 'Direction.CENTER' else ('rc.canMove(' ~ dir ~ ')' ) -%}
-    MapLocation targetLoc_{{suffix}} = myloc.add({{ dir }});
+    MapLocation targetLoc_{{suffix}} = SquareManager.m{{dirX[i]+2}}{{dirY[i]+2}};
     boolean canMove_{{suffix}} = ({{val}});
-    PaintType paint_{{suffix}} = PaintType.ENEMY_PRIMARY;
-    if (rc.canSenseLocation(targetLoc_{{suffix}})) {
-        paint_{{suffix}} = rc.senseMapInfo(targetLoc_{{suffix}}).getPaint();
-    }
+    int penalty_{{suffix}} = SquareManager.penalty{{dirX[i]+2}}{{dirY[i]+2}};
     double paintDmgAttackRange_{{suffix}} = 0;
     double myPaintDmg_{{suffix}} = 0;
     int minDistToEnemy_{{suffix}} = 100000;
@@ -272,7 +280,7 @@ public class MopperAttack {
     /*------------------ COPY --------------------*/
     {# WARNING THIS MUST BE UPDATED OR MICRO WILL HAVE BUGS #}
     {%- macro copy(dest, src) -%}
-    {%- for attribute in ['targetLoc', 'canMove', 'paintDmgAttackRange', 'myPaintDmg', 'minDistToEnemy', 'paint'] -%}
+    {%- for attribute in ['targetLoc', 'canMove', 'paintDmgAttackRange', 'myPaintDmg', 'minDistToEnemy', 'penalty'] -%}
     {{attribute}}_{{dest}} = {{attribute}}_{{src}};
     {% endfor -%}
     {% endmacro -%}
