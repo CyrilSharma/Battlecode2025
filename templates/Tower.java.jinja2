@@ -9,7 +9,7 @@ public class Tower {
     public static MapLocation myloc;
     public static boolean shouldDefend;
     public static int lastDefenseRound = -100;
-    public static final int defenseWaitRounds = 10;
+    public static final int defenseWaitRounds = 30;
     public static void init(RobotController rc) {
         Tower.rc = rc;
     }
@@ -36,8 +36,8 @@ public class Tower {
             int projected = money - UnitType.SOLDIER.moneyCost;
             answer = UnitType.SOLDIER;
         } else if (money < 2000) {
-            if ((round % 50) <= 40) return UnitType.SOLDIER;
-            answer = UnitType.MOPPER;
+            if ((round % 50) <= 40) answer = UnitType.SOLDIER;
+            else answer = UnitType.MOPPER;
         } else {
             if ((round % 50) > 25) return UnitType.SPLASHER;
             answer = UnitType.SOLDIER;

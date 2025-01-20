@@ -53,7 +53,54 @@ public class Mopper {
                 default -> {}
             }
         }
-        mopTarget = bestLoc;
+
+        if (mopTarget != null) {
+            if (rc.canSenseLocation(mopTarget)) {
+                MapInfo mi = rc.senseMapInfo(mopTarget);
+                switch (mi.getPaint()) {
+                    case ENEMY_PRIMARY, ENEMY_SECONDARY: return;
+                    default: mopTarget = null;
+                }
+            }
+            if (bestLoc != null)
+                mopTarget = bestLoc;
+        } else {
+            mopTarget = bestLoc;
+        }
+    }
+
+    public static void handleMopTarget() throws GameActionException {
+        if (myloc.distanceSquaredTo(mopTarget) >= 9) {
+            Pathing.pathTo(mopTarget);
+            return;
+        }
+
+        int bestDist = 1000000;
+        int bestScore = -10000;
+        MapLocation bestLoc = null;
+        {% for direction in directions %}
+        {
+            MapLocation nloc = mopTarget.add({{direction}});
+            if (rc.onTheMap(nloc)) {
+                MapInfo mi = rc.senseMapInfo(nloc);
+                int score = switch (mi.getPaint()) {
+                    case ENEMY_PRIMARY, ENEMY_SECONDARY -> -2;
+                    case EMPTY -> -1;
+                    case ALLY_PRIMARY, ALLY_SECONDARY  -> 0;
+                };
+
+                int dist = nloc.distanceSquaredTo(myloc);
+                if ((score > bestScore) || (score == bestScore && dist < bestDist)) {
+                    bestScore = score;
+                    bestDist = dist;
+                    bestLoc = nloc;
+                }
+            }
+        }
+        {% endfor %}
+
+        if (bestLoc != null)
+            Pathing.pathTo(bestLoc);
     }
 
     public static void run() throws GameActionException {
@@ -76,7 +123,7 @@ public class Mopper {
     }
 
     public static void runTurn() throws GameActionException {
-        if (shouldGoHome && RefuelManager.homeState == RefuelManager.TOWER_PAINT) { 
+        if (shouldGoHome) { // && RefuelManager.homeState == RefuelManager.TOWER_PAINT
             rc.setIndicatorString("Refueling");
             RefuelManager.refuel();
             MopperAttack.mopperTryAttack();
@@ -94,7 +141,7 @@ public class Mopper {
         
         if (mopTarget != null) {
             rc.setIndicatorString("Seeking MopTarget " + mopTarget);
-            Pathing.pathTo(mopTarget);
+            handleMopTarget();
             return;
         }
 

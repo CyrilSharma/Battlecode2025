@@ -23,6 +23,7 @@ public class MopperAttack {
 
     public static boolean shouldMopperMicro() throws GameActionException {
         for (int i = Globals.enemies.length; --i >= 0; ) {
+            if (Globals.enemies[i].paintAmount == 0) continue;
             switch (Globals.enemies[i].type) {
                 case SOLDIER, MOPPER, SPLASHER: return true;
                 default: return false;
