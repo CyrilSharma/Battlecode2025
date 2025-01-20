@@ -72,7 +72,7 @@ public class RefuelManager {
             
         if (!reachedHome && homeState == TOWER_PAINT) {
             rc.setIndicatorString("Going home... " + home.x + " " + home.y);
-            Pathing.pathTo(home);
+            Pathing.safePathTo(home);
         } else if (atHome && homeState == TOWER_PAINT) {
             rc.setIndicatorString("At home, refueling...");
             // Pathing.pathTo(home);

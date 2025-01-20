@@ -54,7 +54,7 @@ public class Explore {
                 Globals.rng.nextInt(rc.getMapHeight())
             );
         }
-        Pathing.pathTo(exploreTarget);
+        Pathing.safePathTo(exploreTarget);
     }
 
 }
