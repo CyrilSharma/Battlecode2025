@@ -71,7 +71,7 @@ public class Mopper {
 
     public static void handleMopTarget(MapLocation target) throws GameActionException {
         if (myloc.distanceSquaredTo(target) >= 9) {
-            Pathing.pathTo(target);
+            Pathing.safePathTo(target);
             return;
         }
 
@@ -100,7 +100,7 @@ public class Mopper {
         {% endfor %}
 
         if (bestLoc != null) {
-            Pathing.pathTo(bestLoc);
+            Pathing.safePathTo(bestLoc);
             MapLocation newLoc = rc.getLocation();
             rc.setIndicatorString("True Mop Target " + bestLoc + " " + myloc + " " + newLoc + " " + mopTarget);
         }

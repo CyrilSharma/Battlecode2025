@@ -65,9 +65,18 @@ public class Pathing {
         }
     }
 
+    public static void pathTo(MapLocation target) throws GameActionException {
+        Pathing.pathTo(target, false);
+    }
+
+    public static void safePathTo(MapLocation target) throws GameActionException {
+        Pathing.pathTo(target, true);
+    }
+
+
     public static MapLocation currentBugPosition = null;
     public static Direction currentBugDirection = null;
-    public static void pathTo(MapLocation target) throws GameActionException {
+    public static void pathTo(MapLocation target, boolean safe) throws GameActionException {
         if (!rc.isMovementReady()) return;
 
         // Simple cases that shouldn't require the full call.
@@ -195,8 +204,17 @@ public class Pathing {
         Direction bestDir = null;
         int bestPaint = -10000;
         int bestDist = 10000000;
-        boolean canMove;
+        boolean bestEnemyRange = true;
 
+        RobotInfo enemyTower = null;
+        if (safe) {
+            MapLocation[] ruins = rc.senseNearbyRuins(-1);
+            for (int i = ruins.length; --i >= 0;) {
+                RobotInfo r = rc.senseRobotAtLocation(ruins[i]);
+                if (r != null && r.team != rc.getTeam()) enemyTower = r;
+            }
+        }
+        
         {# {% for i in range(8) %}
         {% set dir = directions[i] %}
         {% set shortDir = shortDirections[i] %}
@@ -205,7 +223,8 @@ public class Pathing {
             canMove = {{ 'rc.canMove(' ~ dir ~ ')' if dir != 'Direction.CENTER' else 'true' }};
             MapLocation nloc = myloc.add({{dir}});
             int nlocDist = currentBugPosition.distanceSquaredTo(nloc);
-            if (canMove && ((dist{{dirX[i]+1}}{{dirY[i]+1}} < bestDist) ||
+            if (canMove && ((enemyLoc != null && ) || 
+                            (dist{{dirX[i]+1}}{{dirY[i]+1}} < bestDist) ||
                             (dist{{dirX[i]+1}}{{dirY[i]+1}} == bestDist && nlocDist < bestDistSquared))) {
                 bestDir = {{dir}};
                 bestDist = dist{{dirX[i]+1}}{{dirY[i]+1}};
@@ -217,15 +236,23 @@ public class Pathing {
         {% for i in range(8) %}
         {% set dir = directions[i] %}
         {% set shortDir = shortDirections[i] %}
-        dists += {{ '"' + shortDir + '="' }} + dist{{dirX[i]+1}}{{dirY[i]+1}} + " ";
-        canMove = {{ 'rc.canMove(' ~ dir ~ ')' if dir != 'Direction.CENTER' else 'true' }};
-        if (canMove && dist{{dirX[i]+1}}{{dirY[i]+1}} < bestDist) {
-            bestDir = {{dir}};
-            bestDist = dist{{dirX[i]+1}}{{dirY[i]+1}};
+        {
+            // dists += {{ '"' + shortDir + '="' }} + dist{{dirX[i]+1}}{{dirY[i]+1}} + " ";
+            boolean canMove = {{ 'rc.canMove(' ~ dir ~ ')' if dir != 'Direction.CENTER' else 'true' }};
+            MapLocation nloc = myloc.add({{dir}});
+            boolean inEnemyRange = (enemyTower == null) ? false : (enemyTower.location.distanceSquaredTo(nloc) <= enemyTower.type.actionRadiusSquared);
+            dists += {{ '"' + shortDir + '="' }} + inEnemyRange + " ";
+            if ((canMove) && (
+                (safe && !inEnemyRange && bestEnemyRange) ||
+                (dist{{dirX[i]+1}}{{dirY[i]+1}} < bestDist))) {
+                bestDir = {{dir}};
+                bestDist = dist{{dirX[i]+1}}{{dirY[i]+1}};
+                bestEnemyRange = inEnemyRange;
+            }
         }
         {% endfor %}
 
-        //rc.setIndicatorString("Left: " + (count - Clock.getBytecodeNum()));
+        rc.setIndicatorString("dists = " + dists);
         if (bestDir != null && bestDir != Direction.CENTER)
             rc.move(bestDir);
         return;
