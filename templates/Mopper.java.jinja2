@@ -69,9 +69,9 @@ public class Mopper {
         }
     }
 
-    public static void handleMopTarget() throws GameActionException {
-        if (myloc.distanceSquaredTo(mopTarget) >= 9) {
-            Pathing.pathTo(mopTarget);
+    public static void handleMopTarget(MapLocation target) throws GameActionException {
+        if (myloc.distanceSquaredTo(target) >= 9) {
+            Pathing.pathTo(target);
             return;
         }
 
@@ -80,13 +80,13 @@ public class Mopper {
         MapLocation bestLoc = null;
         {% for direction in directions %}
         {
-            MapLocation nloc = mopTarget.add({{direction}});
-            if (rc.onTheMap(nloc)) {
+            MapLocation nloc = target.add({{direction}});
+            if (rc.canSenseLocation(nloc)) {
                 MapInfo mi = rc.senseMapInfo(nloc);
                 int score = switch (mi.getPaint()) {
                     case ENEMY_PRIMARY, ENEMY_SECONDARY -> -2;
                     case EMPTY -> -1;
-                    case ALLY_PRIMARY, ALLY_SECONDARY  -> 0;
+                    case ALLY_PRIMARY, ALLY_SECONDARY -> 0;
                 };
 
                 int dist = nloc.distanceSquaredTo(myloc);
@@ -99,8 +99,11 @@ public class Mopper {
         }
         {% endfor %}
 
-        if (bestLoc != null)
+        if (bestLoc != null) {
             Pathing.pathTo(bestLoc);
+            MapLocation newLoc = rc.getLocation();
+            rc.setIndicatorString("True Mop Target " + bestLoc + " " + myloc + " " + newLoc);
+        }
     }
 
     public static void run() throws GameActionException {
@@ -136,12 +139,13 @@ public class Mopper {
             MapLocation buildTower = TowerBuild.getRuin(near);
             if (buildTower != null) {
                 TowerBuild.makeTower(buildTower);
+                return;
             }
         }
         
         if (mopTarget != null) {
             rc.setIndicatorString("Seeking MopTarget " + mopTarget);
-            handleMopTarget();
+            handleMopTarget(mopTarget);
             return;
         }
 
