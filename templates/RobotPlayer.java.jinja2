@@ -18,6 +18,7 @@ public class RobotPlayer {
         RefuelManager.init(rc);
         TowerBuild.init(rc);
         SquareManager.init(rc);
+        Comms.init(rc);
         {%- macro generate_main_loop(classname) -%}
                 while (true) {
                     try {
@@ -26,6 +27,8 @@ public class RobotPlayer {
                         SquareManager.run();
                         {{ classname }}.run();
                         SymmetryChecker.run();
+                        Comms.run();
+                        rc.setIndicatorString("Symmetry: R = " + SymmetryChecker.RSYM + " V = " + SymmetryChecker.VSYM + " H = " + SymmetryChecker.HSYM);
                     } catch (GameActionException e) {
                         System.out.println("Exception = ");
                         e.printStackTrace();
