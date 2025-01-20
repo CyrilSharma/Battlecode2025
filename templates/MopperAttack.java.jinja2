@@ -20,7 +20,7 @@ public class MopperAttack {
         for (int i = Globals.enemies.length; --i >= 0; ) {
             switch (Globals.enemies[i].type) {
                 case SOLDIER, MOPPER, SPLASHER: return true;
-                default: return true;
+                default: return false;
             }
         }
         return false;
@@ -68,8 +68,11 @@ public class MopperAttack {
 
         MapLocation bestLoc = null;
         int count = 0, bestCount = -1;
-        {% for bx in range(-1, 2, 1) %}
-        {% for by in range(-1, 2, 1) %}
+        {% set dx = [1, 0, -1, 0] %}
+        {% set dy = [0, 1, 0, -1] %}
+        {% for index in range(4) %}
+        {% set bx = dx[index] %}
+        {% set by = dy[index] %}
         {% if not (bx == 0 and by == 0) %}
         if (canSense{{bx+3}}{{by+3}}) {
             count = 0;
@@ -87,7 +90,6 @@ public class MopperAttack {
         }
         {% endif %}
         {% endfor %}
-        {% endfor %}
 
         rc.setIndicatorString("bestCount: " + bestCount + " " + bestLoc.x + " " + bestLoc.y);
         if (bestCount >= 1) {
@@ -103,7 +105,16 @@ public class MopperAttack {
         {{ initTarget(i) | indent(4) }}
         {%- endfor -%}
 
-        boolean actionReady = rc.isActionReady();
+        boolean shouldChase = true;
+        for (int i = Globals.enemies.length; --i >= 0; ) {
+            RobotInfo robot = Globals.enemies[i];
+            switch (robot.type) {
+                case MOPPER -> shouldChase = false;
+                default -> {}
+            }
+        }
+
+        boolean actionReady = rc.isActionReady() || shouldChase;
         for (int i = Globals.friends.length; --i >= 0; ) {
             RobotInfo robot = Globals.friends[i];
             {% for i in range(9) -%}

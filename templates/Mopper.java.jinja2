@@ -24,16 +24,49 @@ public class Mopper {
         return (!mi.getPaint().isAlly() && mi.getPaint() != PaintType.EMPTY);
     }
 
+    public static MapLocation mopTarget = null;
+    public static void computeMopTarget() throws GameActionException {
+        RobotInfo enemyTower = null;
+        MapLocation[] ruins = rc.senseNearbyRuins(-1);
+        for (MapLocation loc: ruins) {
+            RobotInfo r = rc.senseRobotAtLocation(loc);
+            if (r != null && r.team != rc.getTeam()) {
+                enemyTower = r;
+                break;
+            }
+        }
+
+        MapLocation myloc = rc.getLocation();
+        int closest = 1000000000;
+        MapLocation bestLoc = null;
+        MapInfo[] mis = near;
+        for (int i = mis.length; --i >= 0;) {
+            switch (mis[i].getPaint()) {
+                case ENEMY_PRIMARY, ENEMY_SECONDARY -> {
+                    MapLocation loc = mis[i].getMapLocation();
+                    int d = loc.distanceSquaredTo(myloc);
+                    if (d < closest && (enemyTower == null || loc.distanceSquaredTo(enemyTower.location) > enemyTower.type.actionRadiusSquared)) {
+                        closest = d;
+                        bestLoc = loc;
+                    }
+                }
+                default -> {}
+            }
+        }
+        mopTarget = bestLoc;
+    }
+
     public static void run() throws GameActionException {
-        init();
+        initTurn();
         runTurn();
         postTurn();
     }
 
-    public static void init() throws GameActionException {
+    public static void initTurn() throws GameActionException {
         myloc = rc.getLocation();
         myPaint = rc.getPaint();
         near = rc.senseNearbyMapInfos();
+        computeMopTarget();
         RefuelManager.setHome();
         boolean lowHealth = (myPaint <= (paintCapacity >> 2));
         if (lowHealth != shouldGoHome) {
@@ -42,43 +75,13 @@ public class Mopper {
         }
     }
 
-    public static boolean checkNearby(MapLocation loc) throws GameActionException {
-        MapLocation tmp;
-        {% for i in range(2, -3, -1) %}
-        {% for j in range(2, -3, -1) %}
-        {% if i != 0 or j != 0 %}
-        tmp = new MapLocation(loc.x + {{i}}, loc.y + {{j}});
-        if (rc.canSenseLocation(tmp)) {
-            MapInfo mi = rc.senseMapInfo(tmp);
-            if (mi.getPaint() != PaintType.EMPTY && !mi.getPaint().isAlly()) {
-                if (rc.canAttack(tmp)) {
-                    rc.attack(tmp);
-                    return true;
-                }
-            }
-        }
-        {% endif %}
-        {% endfor %}
-        {% endfor %}
-        return false;
-    }
-
-    public static void helpPattern(MapInfo[] near) throws GameActionException {
-        for (int i = near.length; --i >= 0;) {
-            if (near[i].getMark() == PaintType.ALLY_PRIMARY) {
-                if (checkNearby(near[i].getMapLocation())) return;
-            }
-        }
-    }
-
     public static void runTurn() throws GameActionException {
-        if (shouldGoHome) { 
-            // rc.setIndicatorString("Refueling");
-            // RefuelManager.refuel();
-            // return;
-            RefuelManager.findPaintTower();
-        }
-        if (MopperAttack.shouldMopperMicro()) {
+        if (shouldGoHome && RefuelManager.homeState == RefuelManager.TOWER_PAINT) { 
+            rc.setIndicatorString("Refueling");
+            RefuelManager.refuel();
+            MopperAttack.mopperTryAttack();
+            return;
+        } else if (MopperAttack.shouldMopperMicro()) {
             rc.setIndicatorString("Mopping");
             MopperAttack.mopperAttackMicro();
             return;
@@ -88,11 +91,15 @@ public class Mopper {
                 TowerBuild.makeTower(buildTower);
             }
         }
-
-        helpPattern(near);
         
-        // Explore.exploreOnPaint(near);
-        RefuelManager.findPaintTower();
+        if (mopTarget != null) {
+            rc.setIndicatorString("Seeking MopTarget " + mopTarget);
+            Pathing.pathTo(mopTarget);
+            return;
+        }
+
+        rc.setIndicatorString("Exploring " + mopTarget);
+        Explore.explore(near);
     }
 
     public static void postTurn() throws GameActionException {
@@ -100,8 +107,10 @@ public class Mopper {
         MapInfo mi;
         {% for direction in directions %}
         nloc = myloc.add({{direction}});
-        mi = rc.senseMapInfo(nloc);
-        if (rc.canAttack(nloc) && canMop(mi)) rc.attack(nloc);
+        if (rc.canSenseLocation(nloc)) {
+            mi = rc.senseMapInfo(nloc);
+            if (rc.canAttack(nloc) && canMop(mi)) rc.attack(nloc);
+        }
         {% endfor %}
     }
 }

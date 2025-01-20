@@ -7,56 +7,68 @@ import battlecode.common.*;
 public class Tower {
     public static RobotController rc;
     public static MapLocation myloc;
+    public static boolean shouldDefend;
+    public static int lastDefenseRound = -100;
+    public static final int defenseWaitRounds = 10;
     public static void init(RobotController rc) {
         Tower.rc = rc;
+    }
+
+    public static void run() throws GameActionException {
+        initTurn();
+        runTurn();
+    }
+
+    public static void initTurn() throws GameActionException {
+        myloc = rc.getLocation();
+        shouldDefend = false;
+        if ((Globals.enemies.length >= 1) && (rc.getRoundNum() - lastDefenseRound >= defenseWaitRounds)) {
+            shouldDefend = true;
+            lastDefenseRound = rc.getRoundNum();
+        }
     }
 
     public static UnitType getUnitType() throws GameActionException {
         int money = rc.getMoney();
         int round = rc.getRoundNum();
+        UnitType answer;
         if (round < 5) {
             int projected = money - UnitType.SOLDIER.moneyCost;
-            if (projected <= (GameConstants.INITIAL_TEAM_MONEY - (4 * UnitType.SOLDIER.moneyCost))) return null;
-            return UnitType.SOLDIER;
-        }
-        
-        else if (money < 2000) {
-            if ((round % 50) <= 25) return UnitType.SOLDIER;
-            else return UnitType.MOPPER;
+            answer = UnitType.SOLDIER;
+        } else if (money < 2000) {
+            if ((round % 50) <= 40) return UnitType.SOLDIER;
+            answer = UnitType.MOPPER;
         } else {
             if ((round % 50) > 25) return UnitType.SPLASHER;
-            else return UnitType.SOLDIER;
+            answer = UnitType.SOLDIER;
         }
+
+        if (money - answer.moneyCost < UnitType.MOPPER.moneyCost) return null;
+        return answer;
     }
 
-    public static void run() throws GameActionException {
-        // Initialize
-        myloc = rc.getLocation();
-        MapLocation nextLoc;
-
+    public static void runTurn() throws GameActionException {
         towerTryAttack();
-
-        rc.setIndicatorString("Income is: " + Globals.getIncome() + " , " + Globals.lastMoney);
-        if (Globals.shouldStallForIncome()) return;
-        
-        UnitType t = getUnitType();
+        UnitType t = (shouldDefend) ? UnitType.MOPPER : getUnitType();
         if (t == null) return;
         if (rc.getPaint() < t.paintCost) return;
-        
-
-        int lim = 10;
-        if (rc.getMapHeight() * rc.getMapWidth() <= 600) lim = 50;
-        if (rc.getRoundNum() > lim) {
-            if (rc.getMoney() < 1250) return;
+        if (!shouldDefend) {
+            int lim = 10;
+            if (rc.getMapHeight() * rc.getMapWidth() <= 600) lim = 50;
+            if (rc.getRoundNum() > lim) {
+                if (rc.getMoney() < 1250) return;
+            }
         }
         
         loop: {
         {%- for direction in directions %}
-            nextLoc = myloc.add({{ direction }});
+        {
+            MapLocation nextLoc = myloc.add({{ direction }});
             if (rc.canBuildRobot(t, nextLoc)) {
                 rc.buildRobot(t, nextLoc);
                 break loop;
             }
+        }
         {% endfor -%}
         }
     }
