@@ -24,16 +24,99 @@ public class Mopper {
         return (!mi.getPaint().isAlly() && mi.getPaint() != PaintType.EMPTY);
     }
 
+    public static MapLocation mopTarget = null;
+    public static void computeMopTarget() throws GameActionException {
+        RobotInfo enemyTower = null;
+        MapLocation[] ruins = rc.senseNearbyRuins(-1);
+        for (MapLocation loc: ruins) {
+            RobotInfo r = rc.senseRobotAtLocation(loc);
+            if (r != null && r.team != rc.getTeam()) {
+                enemyTower = r;
+                break;
+            }
+        }
+
+        MapLocation myloc = rc.getLocation();
+        int closest = 1000000000;
+        MapLocation bestLoc = null;
+        MapInfo[] mis = near;
+        for (int i = mis.length; --i >= 0;) {
+            switch (mis[i].getPaint()) {
+                case ENEMY_PRIMARY, ENEMY_SECONDARY -> {
+                    MapLocation loc = mis[i].getMapLocation();
+                    int d = loc.distanceSquaredTo(myloc);
+                    if (d < closest && (enemyTower == null || loc.distanceSquaredTo(enemyTower.location) > enemyTower.type.actionRadiusSquared + 20)) {
+                        closest = d;
+                        bestLoc = loc;
+                    }
+                }
+                default -> {}
+            }
+        }
+
+        if (mopTarget != null) {
+            if (rc.canSenseLocation(mopTarget)) {
+                MapInfo mi = rc.senseMapInfo(mopTarget);
+                switch (mi.getPaint()) {
+                    case ENEMY_PRIMARY, ENEMY_SECONDARY: return;
+                    default: mopTarget = null;
+                }
+            }
+            if (bestLoc != null)
+                mopTarget = bestLoc;
+        } else {
+            mopTarget = bestLoc;
+        }
+    }
+
+    public static void handleMopTarget(MapLocation target) throws GameActionException {
+        if (myloc.distanceSquaredTo(target) >= 9) {
+            Pathing.pathTo(target);
+            return;
+        }
+
+        int bestDist = 1000000;
+        int bestScore = -10000;
+        MapLocation bestLoc = null;
+        {% for direction in directions %}
+        {
+            MapLocation nloc = target.add({{direction}});
+            if (rc.canSenseLocation(nloc)) {
+                MapInfo mi = rc.senseMapInfo(nloc);
+                int score = switch (mi.getPaint()) {
+                    case ENEMY_PRIMARY, ENEMY_SECONDARY -> -2;
+                    case EMPTY -> -1;
+                    case ALLY_PRIMARY, ALLY_SECONDARY -> 0;
+                };
+
+                int dist = nloc.distanceSquaredTo(myloc);
+                if ((score > bestScore) || (score == bestScore && dist < bestDist)) {
+                    bestScore = score;
+                    bestDist = dist;
+                    bestLoc = nloc;
+                }
+            }
+        }
+        {% endfor %}
+
+        if (bestLoc != null) {
+            Pathing.pathTo(bestLoc);
+            MapLocation newLoc = rc.getLocation();
+            rc.setIndicatorString("True Mop Target " + bestLoc + " " + myloc + " " + newLoc + " " + mopTarget);
+        }
+    }
+
     public static void run() throws GameActionException {
-        init();
+        initTurn();
         runTurn();
         postTurn();
     }
 
-    public static void init() throws GameActionException {
+    public static void initTurn() throws GameActionException {
         myloc = rc.getLocation();
         myPaint = rc.getPaint();
         near = rc.senseNearbyMapInfos();
+        computeMopTarget();
         RefuelManager.setHome();
         boolean lowHealth = (myPaint <= (paintCapacity >> 2));
         if (lowHealth != shouldGoHome) {
@@ -42,56 +125,32 @@ public class Mopper {
         }
     }
 
-    public static boolean checkNearby(MapLocation loc) throws GameActionException {
-        MapLocation tmp;
-        {% for i in range(2, -3, -1) %}
-        {% for j in range(2, -3, -1) %}
-        {% if i != 0 or j != 0 %}
-        tmp = new MapLocation(loc.x + {{i}}, loc.y + {{j}});
-        if (rc.canSenseLocation(tmp)) {
-            MapInfo mi = rc.senseMapInfo(tmp);
-            if (mi.getPaint() != PaintType.EMPTY && !mi.getPaint().isAlly()) {
-                if (rc.canAttack(tmp)) {
-                    rc.attack(tmp);
-                    return true;
-                }
-            }
-        }
-        {% endif %}
-        {% endfor %}
-        {% endfor %}
-        return false;
-    }
-
-    public static void helpPattern(MapInfo[] near) throws GameActionException {
-        for (int i = near.length; --i >= 0;) {
-            if (near[i].getMark() == PaintType.ALLY_PRIMARY) {
-                if (checkNearby(near[i].getMapLocation())) return;
-            }
-        }
-    }
-
     public static void runTurn() throws GameActionException {
-        if (shouldGoHome) { 
+        if (shouldGoHome && RefuelManager.homeState == RefuelManager.TOWER_PAINT) {
             rc.setIndicatorString("Refueling");
             RefuelManager.refuel();
+            MopperAttack.mopperTryAttack();
             return;
-        }
-        else if (Attack.shouldMopperMicro()) {
+        } else if (MopperAttack.shouldMopperMicro()) {
             rc.setIndicatorString("Mopping");
-            Attack.mopperAttackMicro();
+            MopperAttack.mopperAttackMicro();
             return;
-        }
-        else if (rc.getNumberTowers() < 25){
+        } else if (rc.getNumberTowers() < 25){
             MapLocation buildTower = TowerBuild.getRuin(near);
             if (buildTower != null) {
                 TowerBuild.makeTower(buildTower);
+                return;
             }
         }
-
-        helpPattern(near);
         
-        Explore.exploreOnPaint(near);
+        if (mopTarget != null) {
+            rc.setIndicatorString("Seeking MopTarget " + mopTarget);
+            handleMopTarget(mopTarget);
+            return;
+        }
+
+        rc.setIndicatorString("Exploring " + mopTarget);
+        Explore.explore(near);
     }
 
     public static void postTurn() throws GameActionException {
@@ -99,8 +158,10 @@ public class Mopper {
         MapInfo mi;
         {% for direction in directions %}
         nloc = myloc.add({{direction}});
-        mi = rc.senseMapInfo(nloc);
-        if (rc.canAttack(nloc) && canMop(mi)) rc.attack(nloc);
+        if (rc.canSenseLocation(nloc)) {
+            mi = rc.senseMapInfo(nloc);
+            if (rc.canAttack(nloc) && canMop(mi)) rc.attack(nloc);
+        }
         {% endfor %}
     }
 }

@@ -68,9 +68,19 @@ public class Pathing {
     public static MapLocation currentBugPosition = null;
     public static Direction currentBugDirection = null;
     public static void pathTo(MapLocation target) throws GameActionException {
-        int count = Clock.getBytecodeNum();
+        if (!rc.isMovementReady()) return;
+
+        // Simple cases that shouldn't require the full call.
         myloc = rc.getLocation();
         if (myloc.equals(target)) return;
+        if (myloc.isAdjacentTo(target)) {
+            if (rc.canMove(myloc.directionTo(target))) {
+                rc.move(myloc.directionTo(target));
+            }
+            return;
+        }
+
+        int count = Clock.getBytecodeNum();
         rc.setIndicatorDot(target, 0, 0, 255);
         if (currentTarget == null || !target.equals(currentTarget)) {
             resetPathing(target);
@@ -186,6 +196,23 @@ public class Pathing {
         int bestPaint = -10000;
         int bestDist = 10000000;
         boolean canMove;
+
+        {# {% for i in range(8) %}
+        {% set dir = directions[i] %}
+        {% set shortDir = shortDirections[i] %}
+        {
+            dists += {{ '"' + shortDir + '="' }} + dist{{dirX[i]+1}}{{dirY[i]+1}} + " ";
+            canMove = {{ 'rc.canMove(' ~ dir ~ ')' if dir != 'Direction.CENTER' else 'true' }};
+            MapLocation nloc = myloc.add({{dir}});
+            int nlocDist = currentBugPosition.distanceSquaredTo(nloc);
+            if (canMove && ((dist{{dirX[i]+1}}{{dirY[i]+1}} < bestDist) ||
+                            (dist{{dirX[i]+1}}{{dirY[i]+1}} == bestDist && nlocDist < bestDistSquared))) {
+                bestDir = {{dir}};
+                bestDist = dist{{dirX[i]+1}}{{dirY[i]+1}};
+                bestDistSquared = nlocDist;
+            }
+        }
+        {% endfor %} #}
 
         {% for i in range(8) %}
         {% set dir = directions[i] %}

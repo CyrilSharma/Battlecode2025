@@ -13,21 +13,19 @@ public class RobotPlayer {
         TileLoader.init(rc);
         SymmetryChecker.init(rc);
         Attack.init(rc);
+        MopperAttack.init(rc);
         Explore.init(rc);
         RefuelManager.init(rc);
         TowerBuild.init(rc);
+        SquareManager.init(rc);
         {%- macro generate_main_loop(classname) -%}
                 while (true) {
                     try {
                         TileLoader.load();
                         Globals.run();
+                        SquareManager.run();
                         {{ classname }}.run();
                         SymmetryChecker.run();
-                        // rc.setIndicatorString("Symmetry: " + SymmetryChecker.getSymmetry());
-                        // rc.setIndicatorString("Symmetry: R = " + SymmetryChecker.RSYM + " V = " + SymmetryChecker.VSYM + " H = " + SymmetryChecker.HSYM);
-                        {% if not prod %}
-                        // TileLoader.display();
-                        {% endif %}
                     } catch (GameActionException e) {
                         System.out.println("Exception = ");
                         e.printStackTrace();

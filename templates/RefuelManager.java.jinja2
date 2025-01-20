@@ -75,7 +75,8 @@ public class RefuelManager {
             Pathing.pathTo(home);
         } else if (atHome && homeState == TOWER_PAINT) {
             rc.setIndicatorString("At home, refueling...");
-            Pathing.pathTo(home);
+            // Pathing.pathTo(home);
+            carefullyGoHome();
             RobotInfo r = rc.senseRobotAtLocation(home);
             if (r == null) { 
                 homeState = getTowerState(r);
@@ -91,13 +92,37 @@ public class RefuelManager {
         } else {
             rc.setIndicatorString("homeState := " + homeState + ", " + home.x + " " + home.y);
         }
+    }
 
-        updatePositions();
+    public static void carefullyGoHome() throws GameActionException {
+        rc.setIndicatorString("Going home... safely...");
+        SquareManager.computePaintPenalties();
+        MapLocation myloc = rc.getLocation();
+
+        String penalties = "";
+        Direction bestDir = null;
+        int bestDist = 10000000;
+        {% for di in range(-1, 2) %}
+        {% for dj in range(-1, 2) %}
+        {
+            int dist = SquareManager.m{{di+2}}{{dj+2}}.distanceSquaredTo(home);
+            Direction dir = myloc.directionTo(SquareManager.m{{di+2}}{{dj+2}});
+            penalties += ("" + dir + "=" + SquareManager.penalty{{di+2}}{{dj+2}} + " ");
+            if (SquareManager.penalty{{di+2}}{{dj+2}} <= 1 && dist < bestDist && rc.canMove(dir)) {
+                bestDist = dist;
+                bestDir = dir;
+            }
+        }
+        {% endfor %}
+        {% endfor %}
+
+        rc.setIndicatorString(penalties);
+        if (bestDir != null) rc.move(bestDir);
     }
 
     public static void findPaintTower() throws GameActionException {
-        double bestDistance = 0;
-        double currentDistance;
+        double bestForce = 100000000;
+        double currentForce = 0;
         Direction bestDir = Direction.CENTER;
         MapLocation myloc = rc.getLocation();
         MapLocation nloc;
@@ -107,15 +132,15 @@ public class RefuelManager {
             MapInfo mi = rc.senseMapInfo(nloc);
             if (mi.getPaint().isAlly()) {
                 // currentDistance =  0.2 * nloc.distanceSquaredTo(pastTowerTarget);
-                currentDistance = 0;
+                currentForce = 0;
                 {% for i in range(numberPreviousPositions) %}
-                // currentDistance += {{ (i + 1) / numberPreviousPositions }} * nloc.distanceSquaredTo(previousPosition{{i}});
-                currentDistance += nloc.distanceSquaredTo(previousPosition{{i}});
+                currentForce += (1000 / (nloc.distanceSquaredTo(previousPosition{{i}}) + 1));
+                // currentDistance += nloc.distanceSquaredTo(previousPosition{{i}});
                 {% endfor %}
                 
-                if (currentDistance > bestDistance) {
+                if (currentForce < bestForce) {
                     bestDir = {{direction}};
-                    bestDistance = currentDistance;
+                    bestForce = currentForce;
                 }
             }
         }
@@ -123,6 +148,7 @@ public class RefuelManager {
 
         if (rc.canMove(bestDir))
             rc.move(bestDir);
+        updatePositions();
     }
 
 
