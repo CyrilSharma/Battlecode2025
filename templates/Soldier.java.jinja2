@@ -21,6 +21,11 @@ public class Soldier {
     public static boolean moved = false;
     public static MapLocation returnLoc = null;
 
+    public static MapLocation chunkGoal = null;
+
+    public static int[] dy = {0, 0, 4, -4};
+    public static int[] dx = {-4, 4, 0, 0};
+
     public static void init(RobotController rc) {
         Soldier.rc = rc;
         resourcePat = rc.getResourcePattern();
@@ -111,6 +116,12 @@ public class Soldier {
     public static void moneyPattern() throws GameActionException {
         if (markedResource != null) return;
         if (!(rc.getNumberTowers() > 2 || rc.getRoundNum() > 100)) return;
+
+        if (chunkGoal != null) {
+            if (myloc.equals(chunkGoal)) chunkGoal = null;
+            else Pathing.pathTo(chunkGoal);
+        }
+
         //this just checks that nothing is like directly in the way
         for (int i = 3; --i >= -2; ){
             for (int j = 3; --j >= -2; ){
@@ -144,6 +155,36 @@ public class Soldier {
             rc.mark(myloc, false);
             markedResource = myloc;
         }
+    }
+
+    public static boolean okSRP(MapLocation loc) throws GameActionException {
+        MapLocation tmp;
+        {% for i in range(2, -3, -1) %}
+        {% for j in range(2, -3, -1) %}
+        tmp = new MapLocation(loc.x + {{i}}, loc.y + {{j}});
+        if (!Globals.onMap(tmp)) return false;
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (!mi.isPassable()) return false;
+            if (!mi.getPaint().isAlly() && mi.getPaint() != PaintType.EMPTY) return false;
+        }
+        {% endfor %}
+        {% endfor %}
+        return true;
+    }
+
+    public static MapLocation findNext(MapLocation m) throws GameActionException {
+        int st = Globals.rng.nextInt(4);
+        MapLocation tmp;
+        MapInfo mi;
+        {% for i in range(4) %}
+        tmp = new MapLocation(m.x + dx[(st + {{i}}) % 4], m.y + dy[(st + {{i}}) % 4]);
+        mi = rc.senseMapInfo(tmp);
+        if (okSRP(tmp) && mi.getMark() != PaintType.ALLY_PRIMARY) {
+            return tmp;
+        }
+        {% endfor %}
+        return null;
     }
 
     public static void makeResourcePatch() throws GameActionException {
@@ -182,15 +223,18 @@ public class Soldier {
             if (rc.canCompleteResourcePattern(markedResource)) {
                 rc.completeResourcePattern(markedResource);
                 markedResource = null;
+                chunkGoal = findNext(myloc);
             }
             MapInfo mi = rc.senseMapInfo(myloc);
             if (mi.isResourcePatternCenter()) {
                 markedResource = null;
+                chunkGoal = findNext(myloc);
             }
         }
         else {
             if (rc.canCompleteResourcePattern(markedResource)) {
                 rc.completeResourcePattern(markedResource);
+                chunkGoal = findNext(myloc);
             }
             markedResource = null;
         }
