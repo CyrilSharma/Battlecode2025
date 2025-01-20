@@ -4,6 +4,8 @@ import battlecode.common.*;
 public class MopperAttack {
     public static RobotController rc;
 
+    public static int mopperMaxActionRadiusSquared = 8;
+    public static int mopperDesiredActionRadiusSquared;
     {% set copiedAttributes = ['actionRadiusSquared', 'paintCapacity', 'actionCooldown']%}
     {% for attribute in copiedAttributes -%}
     public static int mopper{{capitalizeFirstLetter(attribute)}};
@@ -100,6 +102,9 @@ public class MopperAttack {
     {% macro attackMicro() -%}
     public static void mopperAttackMicro() throws GameActionException {
         mopperTryAttack();
+        mopperDesiredActionRadiusSquared = (rc.getPaint() < (UnitType.MOPPER.paintCapacity >> 1)) ?
+            mopperActionRadiusSquared : 8;
+
         MapLocation myloc = rc.getLocation();
         {% for i in range(9) -%}
         {{ initTarget(i) | indent(4) }}
@@ -203,24 +208,25 @@ public class MopperAttack {
     {%- set label = 'addEnemy' ~ _ ~ dir %}
     {{label}}: {
         if (!canMove_{{dir}}) break {{label}};
+        if (robot.paintAmount == 0) break {{label}};
         int d = targetLoc_{{dir}}.distanceSquaredTo({{robotVar}}.location);
         switch (robot.type) {
             case SPLASHER: {
-                if (actionReady && d <= mopperActionRadiusSquared) {
+                if (actionReady && d <= mopperDesiredActionRadiusSquared) {
                     myPaintDmg_{{dir}} = GameConstants.MOPPER_SWING_PAINT_DEPLETION;
                 }
                 if (d < minDistToEnemy_{{dir}}) minDistToEnemy_{{dir}} = d;
                 break {{label}};
             }
             case SOLDIER: {
-                if (actionReady && d <= mopperActionRadiusSquared) {
+                if (actionReady && d <= mopperDesiredActionRadiusSquared) {
                     myPaintDmg_{{dir}} = GameConstants.MOPPER_SWING_PAINT_DEPLETION;
                 }
                 if (d < minDistToEnemy_{{dir}}) minDistToEnemy_{{dir}} = d;
                 break {{label}};
             }
             case MOPPER: {
-                if (actionReady && d <= mopperActionRadiusSquared) {
+                if (actionReady && d <= mopperMaxActionRadiusSquared) {
                     myPaintDmg_{{dir}} = GameConstants.MOPPER_SWING_PAINT_DEPLETION;
                     paintDmgAttackRange_{{dir}} = GameConstants.MOPPER_SWING_PAINT_DEPLETION;
                 }
