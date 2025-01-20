@@ -7,16 +7,19 @@ public class Splasher {
     public static RobotController rc;
     public static MapLocation buildTower = null;
     public static MapLocation myloc;
-    public static int paintCapacity = UnitType.SOLDIER.paintCapacity;
+    public static int paintCapacity = UnitType.SPLASHER.paintCapacity;
     public static int myPaint;
     public static boolean shouldGoHome = false;
     public static MapLocation startingHome = null;
     public static boolean reachedSymmetricTarget = false;
     public static boolean lowHealth = false;
+    public static int PAINT_THRESHOLD = 3;
 
     public static void init(RobotController rc) {
         Splasher.rc = rc;
     }
+
+    
 
     public static void run() throws GameActionException {
         initTurn();
@@ -33,8 +36,8 @@ public class Splasher {
             startingHome = RefuelManager.home;
         }
                 
-
-        lowHealth = (myPaint <= (paintCapacity >> 1));
+        computeSplashTarget();
+        lowHealth = (myPaint <= (paintCapacity >> 2));
         if (lowHealth != shouldGoHome) {
             shouldGoHome = lowHealth;
             RefuelManager.reset();
@@ -45,6 +48,10 @@ public class Splasher {
         if (shouldGoHome) {
             rc.setIndicatorString("Refueling");
             RefuelManager.refuel();
+            return;
+        } else if (splashTarget != null) {
+            rc.setIndicatorString("Seeking MopTarget " + splashTarget);
+            handleSplashTarget(splashTarget);
             return;
         } else if (SymmetryChecker.possibleSymmetries() < 3 && !reachedSymmetricTarget) {
             rc.setIndicatorString("Symmetry is known! " + SymmetryChecker.getSymmetry());
@@ -67,6 +74,102 @@ public class Splasher {
 
     public static void postTurn() throws GameActionException {
         doAttack();
+    }
+
+
+    public static MapLocation splashTarget = null;
+    public static void computeSplashTarget() throws GameActionException {
+        MapLocation myloc = rc.getLocation();
+        int x = myloc.x, y = myloc.y;
+        int bestCount = 0;
+        MapLocation bestLoc = null;
+        {% set offset = 4 %}
+        {% for i in range(-offset, offset+1, 1) %}
+        {% for j in range(-offset, offset+1, 1) %}
+        {% set i_idx = i + offset %}
+        {% set j_idx = j + offset %}
+        MapLocation mloc{{i_idx}}{{j_idx}} = new MapLocation(x + {{ i }}, y + {{ j }});
+        PaintType mpaint{{i_idx}}{{j_idx}} = PaintType.ALLY_SECONDARY;
+        boolean canSense{{i_idx}}{{j_idx}} = rc.canSenseLocation(mloc{{i_idx}}{{j_idx}});
+        if (canSense{{i_idx}}{{j_idx}}) {
+            MapInfo minfo{{i_idx}}{{j_idx}} = rc.senseMapInfo(mloc{{i_idx}}{{j_idx}});
+            if (!minfo{{i_idx}}{{j_idx}}.hasRuin() && !minfo{{i_idx}}{{j_idx}}.isWall()) {
+                mpaint{{i_idx}}{{j_idx}} = minfo{{i_idx}}{{j_idx}}.getPaint();
+            }
+        }
+        {% endfor %}
+        {% endfor %}
+
+        {% for i in range(-(offset - 1), offset, 1) %}
+        {% for j in range(-(offset - 1), offset, 1) %}
+        {% set i_idx = i + offset %}
+        {% set j_idx = j + offset %}
+        if (canSense{{i_idx}}{{j_idx}}) {
+            int count = 0;
+            {% for k in range(-1, 2, 1) %}
+            {% for l in range(-1, 2, 1) %} 
+            switch (mpaint{{i+k+offset}}{{j+l+offset}}) {
+                case EMPTY -> {}// count += 1;
+                case ENEMY_PRIMARY, ENEMY_SECONDARY -> ++count;
+                default -> {}
+            }
+            {% endfor %}
+            {% endfor %}
+            if (count > bestCount) {
+                bestLoc = mloc{{i_idx}}{{j_idx}};
+                bestCount = count;
+            }
+        }
+        {% endfor %}
+        {% endfor %}
+
+        if (bestCount <= PAINT_THRESHOLD) {
+            splashTarget = null;
+            return;
+        }
+
+        if (bestLoc != null)
+            splashTarget = bestLoc;
+    }
+
+    public static void handleSplashTarget(MapLocation target) throws GameActionException {
+        if (myloc.distanceSquaredTo(target) >= 16) {
+            Pathing.safePathTo(target);
+            return;
+        }
+
+        int bestDist = 1000000;
+        int bestScore = -10000;
+        MapLocation bestLoc = null;
+        {% for i in range(-2, 3, 1) %}
+        {% for j in range(-2, 3, 1) %}
+        {
+            MapLocation nloc = new MapLocation(target.x + {{i}}, target.y + {{j}});
+            if (rc.canSenseLocation(nloc)) {
+                MapInfo mi = rc.senseMapInfo(nloc);
+                int score = switch (mi.getPaint()) {
+                    case ENEMY_PRIMARY, ENEMY_SECONDARY -> -2;
+                    case EMPTY -> -1;
+                    case ALLY_PRIMARY, ALLY_SECONDARY -> 0;
+                };
+
+                int dist = nloc.distanceSquaredTo(myloc);
+                if ((score > bestScore) || (score == bestScore && dist < bestDist)) {
+                    bestScore = score;
+                    bestDist = dist;
+                    bestLoc = nloc;
+                }
+            }
+        }
+        {% endfor %}
+        {% endfor %}
+
+        if (bestLoc != null) {
+            Pathing.safePathTo(bestLoc);
+            MapLocation newLoc = rc.getLocation();
+            // rc.setIndicatorString("True Splash Target " + bestLoc + " " + myloc + " " + newLoc + " " + splashTarget);
+
+        }
     }
 
     public static void doAttack() throws GameActionException {
@@ -111,7 +214,7 @@ public class Splasher {
         {% endfor %}
 
         {# rc.setIndicatorString("bestCount: " + bestCount + " " + bestLoc.x + " " + bestLoc.y); #}
-        if (bestCount > 5) {
+        if (bestCount > PAINT_THRESHOLD) {
             rc.attack(bestLoc);
         }
     }

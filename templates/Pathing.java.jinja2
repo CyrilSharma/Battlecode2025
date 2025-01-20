@@ -82,12 +82,6 @@ public class Pathing {
         // Simple cases that shouldn't require the full call.
         myloc = rc.getLocation();
         if (myloc.equals(target)) return;
-        if (myloc.isAdjacentTo(target)) {
-            if (rc.canMove(myloc.directionTo(target))) {
-                rc.move(myloc.directionTo(target));
-            }
-            return;
-        }
 
         int count = Clock.getBytecodeNum();
         rc.setIndicatorDot(target, 0, 0, 255);
@@ -204,7 +198,7 @@ public class Pathing {
         Direction bestDir = null;
         int bestPaint = -10000;
         int bestDist = 10000000;
-        boolean bestEnemyRange = true;
+        boolean bestInEnemyRange = true;
 
         RobotInfo enemyTower = null;
         if (safe) {
@@ -214,45 +208,40 @@ public class Pathing {
                 if (r != null && r.team != rc.getTeam()) enemyTower = r;
             }
         }
-        
-        {# {% for i in range(8) %}
-        {% set dir = directions[i] %}
-        {% set shortDir = shortDirections[i] %}
-        {
-            dists += {{ '"' + shortDir + '="' }} + dist{{dirX[i]+1}}{{dirY[i]+1}} + " ";
-            canMove = {{ 'rc.canMove(' ~ dir ~ ')' if dir != 'Direction.CENTER' else 'true' }};
-            MapLocation nloc = myloc.add({{dir}});
-            int nlocDist = currentBugPosition.distanceSquaredTo(nloc);
-            if (canMove && ((enemyLoc != null && ) || 
-                            (dist{{dirX[i]+1}}{{dirY[i]+1}} < bestDist) ||
-                            (dist{{dirX[i]+1}}{{dirY[i]+1}} == bestDist && nlocDist < bestDistSquared))) {
-                bestDir = {{dir}};
-                bestDist = dist{{dirX[i]+1}}{{dirY[i]+1}};
-                bestDistSquared = nlocDist;
-            }
-        }
-        {% endfor %} #}
 
         {% for i in range(8) %}
         {% set dir = directions[i] %}
         {% set shortDir = shortDirections[i] %}
-        {
-            // dists += {{ '"' + shortDir + '="' }} + dist{{dirX[i]+1}}{{dirY[i]+1}} + " ";
+        label{{i}}: {
             boolean canMove = {{ 'rc.canMove(' ~ dir ~ ')' if dir != 'Direction.CENTER' else 'true' }};
-            MapLocation nloc = myloc.add({{dir}});
-            boolean inEnemyRange = (enemyTower == null) ? false : (enemyTower.location.distanceSquaredTo(nloc) <= enemyTower.type.actionRadiusSquared);
-            dists += {{ '"' + shortDir + '="' }} + inEnemyRange + " ";
-            if ((canMove) && (
-                (safe && !inEnemyRange && bestEnemyRange) ||
-                (dist{{dirX[i]+1}}{{dirY[i]+1}} < bestDist))) {
+            if (!canMove) break label{{i}};
+
+            boolean inEnemyRange = false;
+            boolean shouldUpdate = false;
+            shouldUpdateLabel{{i}}: {
+                if (safe && enemyTower != null) {
+                    MapLocation nloc = myloc.add({{dir}});
+                    if (enemyTower.location.distanceSquaredTo(nloc) <= enemyTower.type.actionRadiusSquared)
+                        inEnemyRange = true;
+                    dists += {{ '"' + shortDir + '="' }} + inEnemyRange + " ";
+                    if (safe && inEnemyRange && !bestInEnemyRange) break label{{i}};
+                    if (safe && !inEnemyRange && bestInEnemyRange) {
+                        shouldUpdate = true;
+                        break shouldUpdateLabel{{i}};
+                    }
+                }
+                shouldUpdate = (dist{{dirX[i]+1}}{{dirY[i]+1}} < bestDist);
+            }
+            
+            if (shouldUpdate) {
                 bestDir = {{dir}};
                 bestDist = dist{{dirX[i]+1}}{{dirY[i]+1}};
-                bestEnemyRange = inEnemyRange;
+                bestInEnemyRange = inEnemyRange;
             }
         }
         {% endfor %}
 
-        // rc.setIndicatorString("dists = " + dists);
+        rc.setIndicatorString("dists = " + dists);
         if (bestDir != null && bestDir != Direction.CENTER)
             rc.move(bestDir);
         return;
