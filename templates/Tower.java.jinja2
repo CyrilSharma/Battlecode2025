@@ -35,7 +35,7 @@ public class Tower {
         if (round < 5) {
             int projected = money - UnitType.SOLDIER.moneyCost;
             answer = UnitType.SOLDIER;
-         } else if (Globals.getIncome() < 100) {
+        } else if (money < 2000) {
             if ((round % 50) <= 40) answer = UnitType.SOLDIER;
             else answer = UnitType.MOPPER;
         } else {
