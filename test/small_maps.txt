@@ -1,0 +1,7 @@
+DefaultSmall
+Fossil
+Justice
+Money
+Racetrack
+TargetPractice
+catface

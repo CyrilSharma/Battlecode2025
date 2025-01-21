@@ -117,12 +117,12 @@ def tester(team1: str, team2: str, map: str):
 
 
 @app.local_entrypoint()
-def main(team1: str, team2: str):
+def main(team1: str, team2: str, mapfile: str):
     tot = {
         team1: 0,
         team2: 0
     }
-    maps = read_maps()
+    maps = read_maps(f"./test/{mapfile}")
     num_games = len(maps)
     for output in tester.map(
         [team1] * (num_games) + [team2] * (num_games),

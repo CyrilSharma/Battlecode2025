@@ -36,8 +36,9 @@ $(OUTPUT_DIR)/%.java: $(TEMPLATE_DIR)/%.java.jinja2 $(DEPS)
 	uv run $(JINJA_SCRIPT) --input $< --output $@ --prod $(MODE)
 	chmod 444 $@
 
+MAP_FILE ?= maps.txt
 test: all
-	uv run modal run $(MODAL_SCRIPT) --team1=current --team2=$(BASELINE)
+	uv run modal run $(MODAL_SCRIPT) --team1=current --team2=$(BASELINE) --mapfile=$(MAP_FILE)
 
 pullMatches:
 	uv run modal volume get battlecode-vol / test/matches --force

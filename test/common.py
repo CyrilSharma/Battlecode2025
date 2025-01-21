@@ -1,7 +1,7 @@
 from typing import Iterable
-def read_maps():
+def read_maps(filename):
     maps = []
-    with open("test/maps.txt", "r") as f:
+    with open(filename, "r") as f:
         f_iter = iter(f)
         for line in f_iter:
             data = line.rstrip()
