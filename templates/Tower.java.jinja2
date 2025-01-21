@@ -10,6 +10,7 @@ public class Tower {
     public static boolean shouldDefend;
     public static int lastDefenseRound = -100;
     public static final int defenseWaitRounds = 30;
+    public static UnitType unitToBuild = null;
     public static void init(RobotController rc) {
         Tower.rc = rc;
     }
@@ -28,29 +29,52 @@ public class Tower {
         }
     }
 
+    public static int soldiersBuilt = 0;
+    public static int splashersBuilt = 0;
+    public static int moppersBuilt = 0;
     public static UnitType getUnitType() throws GameActionException {
         int money = rc.getMoney();
         int round = rc.getRoundNum();
         UnitType answer;
         if (round < 5) {
-            int projected = money - UnitType.SOLDIER.moneyCost;
             answer = UnitType.SOLDIER;
-        } else if (money < 2000) {
-            if ((round % 50) <= 40) answer = UnitType.SOLDIER;
+        } else if (money < 2000 && Globals.getIncome() < 60) {
+            int total = (soldiersBuilt + moppersBuilt);
+            if (total % 5 < 4) answer = UnitType.SOLDIER;
             else answer = UnitType.MOPPER;
         } else {
-            if ((round % 50) > 30) answer = UnitType.SPLASHER;
-            else if ((round % 50) > 2) answer = UnitType.SOLDIER;
+            int total = (soldiersBuilt + splashersBuilt + moppersBuilt);
+            if (total % 5 < 2) answer = UnitType.SPLASHER;
+            else if (total % 5 < 4) answer = UnitType.SOLDIER;
             else answer = UnitType.MOPPER;
         }
 
-        // if (rc.getPaint() - answer.paintCost < UnitType.MOPPER.paintCost) return null;
+        switch (answer) {
+            case SOLDIER -> ++soldiersBuilt;
+            case SPLASHER -> ++splashersBuilt;
+            case MOPPER -> ++moppersBuilt;
+            default -> {}
+        }
         return answer;
     }
 
     public static void runTurn() throws GameActionException {
         towerTryAttack();
-        UnitType t = (shouldDefend) ? UnitType.MOPPER : getUnitType();
+        
+        UnitType t;
+        if (shouldDefend) {
+            t = UnitType.MOPPER;
+            rc.setIndicatorString("Defense! Making a mopper");
+        } else if (unitToBuild == null) {
+            unitToBuild = getUnitType();
+            t = unitToBuild;
+            rc.setIndicatorString("Saving for " + t);
+        } else {
+            t = unitToBuild;
+            rc.setIndicatorString("Saving for " + t);
+        }
+
+
         if (t == null) return;
         if (rc.getPaint() < t.paintCost) return;
         if (!shouldDefend) {
@@ -61,12 +85,14 @@ public class Tower {
             }
         }
         
+        // This isn't great either.
         loop: {
         {%- for direction in directions %}
         {
             MapLocation nextLoc = myloc.add({{ direction }});
             if (rc.canBuildRobot(t, nextLoc)) {
                 rc.buildRobot(t, nextLoc);
+                unitToBuild = null;
                 break loop;
             }
         }
