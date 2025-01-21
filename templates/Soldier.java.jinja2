@@ -20,6 +20,7 @@ public class Soldier {
     public static boolean shouldGoHome = false;
     public static boolean moved = false;
     public static MapLocation returnLoc = null;
+    public static boolean reallyGoing = false;
 
     public static MapLocation chunkGoal = null;
 
@@ -113,6 +114,29 @@ public class Soldier {
         return true;
     }
 
+    public static boolean enoughToSRP() throws GameActionException {
+        //TODO: if we see a conflict, stop building and mark with a 2 (can add later)
+        int need = 0;
+        for (int i = 3; --i >= -2; ){
+            for (int j = 3; --j >= -2; ){
+                MapLocation tmp = new MapLocation(markedResource.x + i, markedResource.y + j);
+                if (rc.canSenseLocation(tmp)) {
+                    MapInfo mi = rc.senseMapInfo(tmp);
+                    if (canChangeColor(mi)) {
+                        boolean b = shouldUseSecond(tmp, markedResource);
+                        if (mi.getPaint().isAlly()) {
+                            if (b == (mi.getPaint() == PaintType.ALLY_SECONDARY)) {
+                                continue;
+                            }
+                        }
+                        need += 5;
+                    }
+                }
+            }
+        }
+        return (rc.getPaint() - need >= 10);
+    }
+
     public static void moneyPattern() throws GameActionException {
         if (markedResource != null) return;
         if (!(rc.getNumberTowers() > 2 || rc.getRoundNum() > 100)) return;
@@ -121,6 +145,8 @@ public class Soldier {
             if (myloc.equals(chunkGoal)) chunkGoal = null;
             else Pathing.pathTo(chunkGoal);
         }
+
+        if (Globals.enemies.length > 0) return;
 
         //this just checks that nothing is like directly in the way
         for (int i = 3; --i >= -2; ){
@@ -256,6 +282,7 @@ public class Soldier {
         boolean lowHealth = (myPaint <= (paintCapacity >> 2));
         if (lowHealth != shouldGoHome) {
             shouldGoHome = lowHealth;
+            reallyGoing = false;
             if (buildTower != null && shouldGoHome) returnLoc = buildTower;
             RefuelManager.reset();
         }
@@ -309,12 +336,21 @@ public class Soldier {
     }
     
     public static void runTurn() throws GameActionException {
-        if (rc.getNumberTowers() < 25 && rc.getPaint() < 50) {
+        if (rc.getNumberTowers() < 25 && rc.getPaint() < 50 && !reallyGoing) {
             buildTower = TowerBuild.getRuin(near);
             if (buildTower != null && TowerBuild.enoughPaint(buildTower)) {
                 TowerBuild.makeTower(buildTower);
                 return;
             }
+            else reallyGoing = true;
+        }
+
+        if (markedResource != null && !reallyGoing && rc.getPaint() < 50) {
+            if (enoughToSRP() && !reallyGoing){
+                makeResourcePatch();
+                return;
+            }
+            else reallyGoing = true;
         }
 
         if (shouldGoHome) {
