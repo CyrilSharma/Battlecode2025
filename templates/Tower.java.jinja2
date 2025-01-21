@@ -39,8 +39,9 @@ public class Tower {
             if ((round % 50) <= 40) answer = UnitType.SOLDIER;
             else answer = UnitType.MOPPER;
         } else {
-            if ((round % 50) > 25) return UnitType.SPLASHER;
-            answer = UnitType.SOLDIER;
+            if ((round % 50) > 30) answer = UnitType.SPLASHER;
+            else if ((round % 50) > 2) answer = UnitType.SOLDIER;
+            else answer = UnitType.MOPPER;
         }
 
         // if (rc.getPaint() - answer.paintCost < UnitType.MOPPER.paintCost) return null;
