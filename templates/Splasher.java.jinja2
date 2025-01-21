@@ -49,6 +49,10 @@ public class Splasher {
             rc.setIndicatorString("Refueling");
             RefuelManager.refuel();
             return;
+        } else if (Attack.shouldSplasherMicro()) {
+            rc.setIndicatorString("Attacking");
+            Attack.splasherAttackMicro();
+            return;
         } else if (splashTarget != null) {
             rc.setIndicatorString("Seeking MopTarget " + splashTarget);
             handleSplashTarget(splashTarget);
