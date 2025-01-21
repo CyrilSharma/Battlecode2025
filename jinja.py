@@ -53,6 +53,10 @@ def capitalizeFirstLetter(s):
     if not s: return s
     return s[0].upper() + s[1:]
 
+SQUARE_OFFSET = 5
+def squareOffset(x):
+    return x + SQUARE_OFFSET
+
 def main():
     parser = argparse.ArgumentParser(description="Generate a .java file from a .java.jinja2 template.")
     parser.add_argument("--input", required=True, help="Path to the input .java.jinja2 template file.")
@@ -72,6 +76,7 @@ def main():
     env.globals['bitRightShift'] = bitRightShift
     env.globals['intDiv'] = intDiv
     env.globals['capitalizeFirstLetter'] = capitalizeFirstLetter
+    env.globals['squareOffset'] = squareOffset
 
     template = env.get_template(args.input)
     rendered_content = template.render(
@@ -97,6 +102,7 @@ def main():
             'NW',
             'C'
         ],
+        SQUARE_OFFSET=SQUARE_OFFSET,
         prod=(args.prod == 'True')
     )
     with open(args.output, 'w') as output_file:

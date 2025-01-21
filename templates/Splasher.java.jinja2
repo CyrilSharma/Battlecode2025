@@ -79,36 +79,34 @@ public class Splasher {
 
     public static MapLocation splashTarget = null;
     public static void computeSplashTarget() throws GameActionException {
+        SquareManager.loadSquares();
         MapLocation myloc = rc.getLocation();
         int x = myloc.x, y = myloc.y;
         int bestCount = 0;
         MapLocation bestLoc = null;
         {% set offset = 4 %}
-        {% for i in range(-offset, offset+1, 1) %}
-        {% for j in range(-offset, offset+1, 1) %}
-        {% set i_idx = i + offset %}
-        {% set j_idx = j + offset %}
-        MapLocation mloc{{i_idx}}{{j_idx}} = new MapLocation(x + {{ i }}, y + {{ j }});
-        PaintType mpaint{{i_idx}}{{j_idx}} = PaintType.ALLY_SECONDARY;
-        boolean canSense{{i_idx}}{{j_idx}} = rc.canSenseLocation(mloc{{i_idx}}{{j_idx}});
-        if (canSense{{i_idx}}{{j_idx}}) {
-            MapInfo minfo{{i_idx}}{{j_idx}} = rc.senseMapInfo(mloc{{i_idx}}{{j_idx}});
-            if (!minfo{{i_idx}}{{j_idx}}.hasRuin() && !minfo{{i_idx}}{{j_idx}}.isWall()) {
-                mpaint{{i_idx}}{{j_idx}} = minfo{{i_idx}}{{j_idx}}.getPaint();
+        {% for di in range(-offset, offset+1, 1) %}
+        {% for dj in range(-offset, offset+1, 1) %}
+        {% set i = squareOffset(di) %}
+        {% set j = squareOffset(dj) %}
+        PaintType mpaint{{i}}{{j}} = PaintType.ALLY_SECONDARY;
+        if (SquareManager.canSense{{i}}{{j}}) {
+            if (!SquareManager.info{{i}}{{j}}.hasRuin() && !SquareManager.info{{i}}{{j}}.isWall()) {
+                mpaint{{i}}{{j}} = SquareManager.info{{i}}{{j}}.getPaint();
             }
         }
         {% endfor %}
         {% endfor %}
 
-        {% for i in range(-(offset - 1), offset, 1) %}
-        {% for j in range(-(offset - 1), offset, 1) %}
-        {% set i_idx = i + offset %}
-        {% set j_idx = j + offset %}
-        if (canSense{{i_idx}}{{j_idx}}) {
+        {% for di in range(-(offset - 1), offset, 1) %}
+        {% for dj in range(-(offset - 1), offset, 1) %}
+        {% set i = squareOffset(di) %}
+        {% set j = squareOffset(dj) %}
+        if (SquareManager.canSense{{i}}{{j}}) {
             int count = 0;
-            {% for k in range(-1, 2, 1) %}
-            {% for l in range(-1, 2, 1) %} 
-            switch (mpaint{{i+k+offset}}{{j+l+offset}}) {
+            {% for dk in range(-1, 2, 1) %}
+            {% for dl in range(-1, 2, 1) %} 
+            switch (mpaint{{squareOffset(di+dk)}}{{squareOffset(dj+dl)}}) {
                 case EMPTY -> {}// count += 1;
                 case ENEMY_PRIMARY, ENEMY_SECONDARY -> ++count;
                 default -> {}
@@ -116,7 +114,7 @@ public class Splasher {
             {% endfor %}
             {% endfor %}
             if (count > bestCount) {
-                bestLoc = mloc{{i_idx}}{{j_idx}};
+                bestLoc = SquareManager.m{{i}}{{j}};
                 bestCount = count;
             }
         }
@@ -174,31 +172,35 @@ public class Splasher {
 
     public static void doAttack() throws GameActionException {
         if (!rc.isActionReady() || lowHealth) return;
+        SquareManager.loadSquares();
         MapLocation myloc = rc.getLocation();
         int x = myloc.x, y = myloc.y;
         MapLocation bestLoc = null;
         int count = 0, bestCount = -1;
 
-        {% for i in range(-3, 4, 1) %}
-        {% for j in range(-3, 4, 1) %}
-        MapLocation mloc{{i+3}}{{j+3}} = new MapLocation(x + {{ i }}, y + {{ j }});
-        PaintType mpaint{{i+3}}{{j+3}} = PaintType.ALLY_SECONDARY;
-        if (rc.canSenseLocation(mloc{{i+3}}{{j+3}})) {
-            MapInfo minfo{{i+3}}{{j+3}} = rc.senseMapInfo(mloc{{i+3}}{{j+3}});
-            if (!minfo{{i+3}}{{j+3}}.hasRuin() && !minfo{{i+3}}{{j+3}}.isWall()) {
-                mpaint{{i+3}}{{j+3}} = minfo{{i+3}}{{j+3}}.getPaint();
+        {% set offset = 3 %}
+        {% for di in range(-offset, offset+1, 1) %}
+        {% for dj in range(-offset, offset+1, 1) %}
+        {% set i = squareOffset(di) %}
+        {% set j = squareOffset(dj) %}
+        PaintType mpaint{{i}}{{j}} = PaintType.ALLY_SECONDARY;
+        if (SquareManager.canSense{{i}}{{j}}) {
+            if (!SquareManager.info{{i}}{{j}}.hasRuin() && !SquareManager.info{{i}}{{j}}.isWall()) {
+                mpaint{{i}}{{j}} = SquareManager.info{{i}}{{j}}.getPaint();
             }
         }
         {% endfor %}
         {% endfor %}
 
-        {% for i in range(-2, 3, 1) %}
-        {% for j in range(-2, 3, 1) %}
-        if (rc.canAttack(mloc{{i+3}}{{j+3}})) {
+        {% for di in range(-2, 3, 1) %}
+        {% for dj in range(-2, 3, 1) %}
+        {% set i = squareOffset(di) %}
+        {% set j = squareOffset(dj) %}
+        if (rc.canAttack(SquareManager.m{{i}}{{j}})) {
             count = 0;
-            {% for k in range(-1, 2, 1) %}
-            {% for l in range(-1, 2, 1) %} 
-            switch (mpaint{{i+k+3}}{{j+l+3}}) {
+            {% for dk in range(-1, 2, 1) %}
+            {% for dl in range(-1, 2, 1) %} 
+            switch (mpaint{{squareOffset(di+dk)}}{{squareOffset(dj+dl)}}) {
                 case EMPTY -> {}// count += 1;
                 case ENEMY_PRIMARY, ENEMY_SECONDARY -> count += 2;
                 default -> {}
@@ -206,7 +208,7 @@ public class Splasher {
             {% endfor %}
             {% endfor %}
             if (count > bestCount) {
-                bestLoc = mloc{{i+3}}{{j+3}};
+                bestLoc = SquareManager.m{{i}}{{j}};
                 bestCount = count;
             }
         }

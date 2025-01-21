@@ -272,9 +272,9 @@ public class MopperAttack {
     {%- macro initTargetWithSuffix(i, suffix) -%}
     {% set dir = directions[i] %}
     {%- set val = 'true' if dir == 'Direction.CENTER' else ('rc.canMove(' ~ dir ~ ')' ) -%}
-    MapLocation targetLoc_{{suffix}} = SquareManager.m{{dirX[i]+2}}{{dirY[i]+2}};
+    MapLocation targetLoc_{{suffix}} = SquareManager.m{{squareOffset(dirX[i])}}{{squareOffset(dirY[i])}};
     boolean canMove_{{suffix}} = ({{val}});
-    int penalty_{{suffix}} = SquareManager.penalty{{dirX[i]+2}}{{dirY[i]+2}};
+    int penalty_{{suffix}} = SquareManager.penalty{{squareOffset(dirX[i])}}{{squareOffset(dirY[i])}};
     double paintDmgAttackRange_{{suffix}} = 0;
     double myPaintDmg_{{suffix}} = 0;
     int minDistToEnemy_{{suffix}} = 100000;

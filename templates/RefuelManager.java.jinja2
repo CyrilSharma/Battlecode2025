@@ -104,11 +104,13 @@ public class RefuelManager {
         int bestDist = 10000000;
         {% for di in range(-1, 2) %}
         {% for dj in range(-1, 2) %}
+        {% set i = squareOffset(di) %}
+        {% set j = squareOffset(dj) %}
         {
-            int dist = SquareManager.m{{di+2}}{{dj+2}}.distanceSquaredTo(home);
-            Direction dir = myloc.directionTo(SquareManager.m{{di+2}}{{dj+2}});
-            penalties += ("" + dir + "=" + SquareManager.penalty{{di+2}}{{dj+2}} + " ");
-            if (SquareManager.penalty{{di+2}}{{dj+2}} <= 1 && dist < bestDist && rc.canMove(dir)) {
+            int dist = SquareManager.m{{i}}{{j}}.distanceSquaredTo(home);
+            Direction dir = myloc.directionTo(SquareManager.m{{i}}{{j}});
+            penalties += ("" + dir + "=" + SquareManager.penalty{{i}}{{j}} + " ");
+            if (SquareManager.penalty{{i}}{{j}} <= 1 && dist < bestDist && rc.canMove(dir)) {
                 bestDist = dist;
                 bestDir = dir;
             }

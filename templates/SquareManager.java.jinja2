@@ -9,10 +9,11 @@ public class SquareManager {
 
     public static MapLocation myloc = null;
 
-    {% for di in range(-2, 3) %}
-    {% for dj in range(-2, 3) %}
-    {% set i = di + 2 %}
-    {% set j = dj + 2 %}
+    {% set OFFSET = SQUARE_OFFSET %}
+    {% for di in range(-OFFSET, OFFSET + 1) %}
+    {% for dj in range(-OFFSET, OFFSET + 1) %}
+    {% set i = di + OFFSET %}
+    {% set j = dj + OFFSET %}
     public static MapLocation m{{i}}{{j}} = null;
     public static boolean canSense{{i}}{{j}} = false;
     public static MapInfo info{{i}}{{j}} = null;
@@ -33,10 +34,11 @@ public class SquareManager {
     public static boolean loadSquaresDone = false;
     public static void loadSquares() throws GameActionException {
         if (loadSquaresDone) return;
-        {% for di in range(-2, 3) %}
-        {% for dj in range(-2, 3) %}
-        {% set i = di + 2 %}
-        {% set j = dj + 2 %}
+        int used = Clock.getBytecodeNum();
+        {% for di in range(-OFFSET, OFFSET + 1) %}
+        {% for dj in range(-OFFSET, OFFSET + 1) %}
+        {% set i = squareOffset(di) %}
+        {% set j = squareOffset(dj) %}
         m{{i}}{{j}} = new MapLocation(myloc.x + {{di}}, myloc.y + {{dj}});
         canSense{{i}}{{j}} = rc.canSenseLocation(m{{i}}{{j}});
         if (canSense{{i}}{{j}}) {
@@ -50,6 +52,7 @@ public class SquareManager {
         }
         {% endfor %}
         {% endfor %}
+        System.out.println("Total: " + (used - Clock.getBytecodeNum()));
         loadSquaresDone = true;
     }
 
@@ -60,12 +63,12 @@ public class SquareManager {
         {% for di in range(-1, 2) %}
         {% for dj in range(-1, 2) %}
         {   
-            adjacent{{di+2}}{{dj+2}} = 0;
+            adjacent{{squareOffset(di)}}{{squareOffset(dj)}} = 0;
             {% for dk in range(-1, 2) %}
             {% for dl in range(-1, 2) %}
             {% if (di + dk) != 0 or (dj + dl) != 0 %}
-            if (friend{{di + dk + 2}}{{dj + dl + 2}}) 
-                ++adjacent{{di+2}}{{dj+2}};
+            if (friend{{squareOffset(di+dk)}}{{squareOffset(dj+dl)}}) 
+                ++adjacent{{squareOffset(di)}}{{squareOffset(dj)}};
             {% endif %}
             {% endfor %}
             {% endfor %}
@@ -82,11 +85,13 @@ public class SquareManager {
         {% for di in range(-1, 2) %}
         {% for dj in range(-1, 2) %}
         {
-            if (canSense{{di+2}}{{dj+2}}) {
-                penalty{{di+2}}{{dj+2}} = switch (info{{di+2}}{{dj+2}}.getPaint()) {
-                    case ENEMY_PRIMARY, ENEMY_SECONDARY -> 2 + 2 * adjacent{{di+2}}{{dj+2}};
-                    case ALLY_PRIMARY, ALLY_SECONDARY -> adjacent{{di+2}}{{dj+2}};
-                    case EMPTY -> 1 + adjacent{{di+2}}{{dj+2}};
+            {% set i = squareOffset(di) %}
+            {% set j = squareOffset(dj) %}
+            if (canSense{{i}}{{j}}) {
+                penalty{{i}}{{j}} = switch (info{{i}}{{j}}.getPaint()) {
+                    case ENEMY_PRIMARY, ENEMY_SECONDARY -> 2 + 2 * adjacent{{i}}{{j}};
+                    case ALLY_PRIMARY, ALLY_SECONDARY -> adjacent{{i}}{{j}};
+                    case EMPTY -> 1 + adjacent{{i}}{{j}};
                 };
             }
         }
