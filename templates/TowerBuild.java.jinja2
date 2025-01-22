@@ -10,6 +10,7 @@ public class TowerBuild {
     public static boolean[][] moneyTower = null;
     public static boolean[][] paintTower = null;
     public static boolean[][] defenseTower = null;
+    public static MapLocation finishedTower = null;
 
     public static void init(RobotController rc) throws GameActionException {
         TowerBuild.rc = rc;
@@ -17,6 +18,38 @@ public class TowerBuild {
         moneyTower = rc.getTowerPattern(UnitType.LEVEL_ONE_MONEY_TOWER);
         paintTower = rc.getTowerPattern(UnitType.LEVEL_ONE_PAINT_TOWER);
         defenseTower = rc.getTowerPattern(UnitType.LEVEL_ONE_DEFENSE_TOWER);
+    }
+
+    public static void removePattern() throws GameActionException {
+        MapLocation paintMark = finishedTower.add(Direction.WEST);
+        MapLocation moneyMark = finishedTower.add(Direction.SOUTH);
+        int num = 0;
+        if (rc.canSenseLocation(paintMark)){
+            MapInfo s = rc.senseMapInfo(paintMark);
+            if (s.getMark() == PaintType.ALLY_SECONDARY) {
+                if (rc.canRemoveMark(paintMark)) {
+                    rc.removeMark(paintMark);
+                    finishedTower = null;
+                }
+                else Pathing.pathTo(paintMark);
+                return;
+            }
+            num++;
+        }
+        if (rc.canSenseLocation(moneyMark)) {
+            MapInfo s = rc.senseMapInfo(moneyMark);
+            if (s.getMark() == PaintType.ALLY_SECONDARY) {
+                if (rc.canRemoveMark(moneyMark)) {
+                    rc.removeMark(moneyMark);
+                    finishedTower = null;
+                }
+                else Pathing.pathTo(moneyMark);
+                return;
+            }
+            num++;
+        }
+        if (num == 2) finishedTower = null;
+        else Pathing.pathTo(finishedTower);
     }
 
     public static MapLocation getRuin(MapInfo[] near) throws GameActionException {
@@ -152,8 +185,47 @@ public class TowerBuild {
 
     public static void makeTower(MapLocation buildTower) throws GameActionException {
         prevRuin = buildTower;
-
         UnitType t = Globals.getTowerToBuild(buildTower);
+
+        MapLocation paintMark = buildTower.add(Direction.WEST);
+        MapLocation moneyMark = buildTower.add(Direction.SOUTH);
+        boolean see = false;
+        if (rc.canSenseLocation(paintMark) && rc.canSenseLocation(moneyMark)){
+            MapInfo pm = rc.senseMapInfo(paintMark);
+            MapInfo mm = rc.senseMapInfo(moneyMark);
+            if (mm.getMark() != PaintType.ALLY_SECONDARY && pm.getMark() != PaintType.ALLY_SECONDARY) {
+                if (t == UnitType.LEVEL_ONE_MONEY_TOWER) {
+                    if (rc.canMark(moneyMark)) {
+                        rc.mark(moneyMark, true);
+                    }
+                    else {
+                        Pathing.pathTo(moneyMark);
+                    }
+                }
+                else if (t == UnitType.LEVEL_ONE_PAINT_TOWER) {
+                    if (rc.canMark(paintMark)) {
+                        rc.mark(paintMark, true);
+                    }
+                    else {
+                        Pathing.pathTo(paintMark);
+                    }
+                }
+            }
+            else see = true;
+        }
+        else if (rc.canSenseLocation(paintMark)) {
+            MapInfo pm = rc.senseMapInfo(paintMark);
+            if (pm.getMark() != PaintType.ALLY_SECONDARY) {
+                see = true;
+            }
+        }
+        else if (rc.canSenseLocation(moneyMark)) {
+            MapInfo mm = rc.senseMapInfo(moneyMark);
+            if (mm.getMark() != PaintType.ALLY_SECONDARY) {
+                see = true;
+            }
+        }
+
         MapLocation tmp;
         MapLocation goal = null;
         boolean secondCol = false;
@@ -164,7 +236,7 @@ public class TowerBuild {
         {% if i != 0 or j != 0 %}
         tmp = new MapLocation(buildTower.x + {{i}}, buildTower.y + {{j}});
         d = rc.getLocation().distanceSquaredTo(tmp);
-        if (d < bestDist) {
+        if (d < bestDist && (see || (!see && tmp.distanceSquaredTo(buildTower) <= 2))) {
             if (rc.canSenseLocation(tmp)) {
                 MapInfo mi = rc.senseMapInfo(tmp);
                 switch (mi.getPaint()) {
@@ -218,9 +290,13 @@ public class TowerBuild {
         else {
             if (rc.canCompleteTowerPattern(UnitType.LEVEL_ONE_PAINT_TOWER, buildTower)) {
                 rc.completeTowerPattern(UnitType.LEVEL_ONE_PAINT_TOWER, buildTower);
+                finishedTower = buildTower;
+                removePattern();
             }
             if (rc.canCompleteTowerPattern(UnitType.LEVEL_ONE_MONEY_TOWER, buildTower)) {
                 rc.completeTowerPattern(UnitType.LEVEL_ONE_MONEY_TOWER, buildTower);
+                finishedTower = buildTower;
+                removePattern();
             }
             Pathing.pathTo(buildTower);
             if (rc.getLocation().distanceSquaredTo(buildTower) <= 2) {

@@ -30,42 +30,17 @@ public class Globals {
     }
 
     public static UnitType getTowerToBuild(MapLocation loc) throws GameActionException {
-        int pt = 0, mt = 0;
-        MapLocation tmp;
-        String s = "";
-        {% for i in range(2, -3, -1) %}
-        {% for j in range(2, -3, -1) %}
-        {% if i != 0 or j != 0 %}
-        tmp = new MapLocation(loc.x + {{i}}, loc.y + {{j}});
-        if (rc.canSenseLocation(tmp)) {
-            MapInfo mi = rc.senseMapInfo(tmp);
-            if (mi.getPaint().isAlly()) {
-                if ((mi.getPaint() == PaintType.ALLY_SECONDARY) == paintTower[2 + (tmp.x - loc.x)][2 + (tmp.y - loc.y)]) {
-                    pt++;
-                }
-                if ((mi.getPaint() == PaintType.ALLY_SECONDARY) == moneyTower[2 + (tmp.x - loc.x)][2 + (tmp.y - loc.y)]) {
-                    mt++;
-                }
-            }
+        MapLocation paintMark = loc.add(Direction.WEST);
+        MapLocation moneyMark = loc.add(Direction.SOUTH);
+        if (rc.canSenseLocation(paintMark)){
+            MapInfo s = rc.senseMapInfo(paintMark);
+            if (s.getMark() == PaintType.ALLY_SECONDARY) return UnitType.LEVEL_ONE_PAINT_TOWER;
         }
-        {% endif %}
-        {% endfor %}
-        {% endfor %}
-        if (mt - pt >= 5) return UnitType.LEVEL_ONE_MONEY_TOWER;
-        if (pt - mt >= 5) return UnitType.LEVEL_ONE_PAINT_TOWER;
-        int sz = Math.max(rc.getMapWidth(), rc.getMapHeight());
-        int firstPaint = 0;
-        if (sz <= 35) {
-            firstPaint = 3;
-        } else if (sz <= 50) {
-            firstPaint = 4;
-        } else if (sz <= 55){
-            firstPaint = 5;
+        if( rc.canSenseLocation(moneyMark)) {
+            MapInfo s = rc.senseMapInfo(moneyMark);
+            if (s.getMark() == PaintType.ALLY_SECONDARY) return UnitType.LEVEL_ONE_MONEY_TOWER;
         }
-        else {
-            firstPaint = 7;
-        }
-        if (rc.getMoney() < 2000 && rc.getNumberTowers() != firstPaint) return UnitType.LEVEL_ONE_MONEY_TOWER;
+        if (rc.getMoney() < 2000) return UnitType.LEVEL_ONE_MONEY_TOWER;
         return UnitType.LEVEL_ONE_PAINT_TOWER;
     }
 
