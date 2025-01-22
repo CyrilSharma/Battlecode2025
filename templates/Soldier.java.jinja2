@@ -353,6 +353,12 @@ public class Soldier {
             else reallyGoing = true;
         }
 
+        if (TowerBuild.finishedTower != null){
+            rc.setIndicatorString("WWWWWWWW");
+            TowerBuild.removePattern();
+            return;
+        }
+
         if (shouldGoHome) {
             rc.setIndicatorString("Refueling");
             RefuelManager.refuel();
@@ -403,9 +409,13 @@ public class Soldier {
         if (buildTower != null && !Globals.shouldStallForIncome()) {
             if (rc.canCompleteTowerPattern(UnitType.LEVEL_ONE_PAINT_TOWER, buildTower)) {
                 rc.completeTowerPattern(UnitType.LEVEL_ONE_PAINT_TOWER, buildTower);
+                TowerBuild.finishedTower = buildTower;
+                TowerBuild.removePattern();
             }
             if (rc.canCompleteTowerPattern(UnitType.LEVEL_ONE_MONEY_TOWER, buildTower)) {
                 rc.completeTowerPattern(UnitType.LEVEL_ONE_MONEY_TOWER, buildTower);
+                TowerBuild.finishedTower = buildTower;
+                TowerBuild.removePattern();
             }
         }
         checkMoneyPatterns();
