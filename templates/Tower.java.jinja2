@@ -33,7 +33,27 @@ public class Tower {
     public static void initTurn() throws GameActionException {
         myloc = rc.getLocation();
         shouldDefend = false;
-        if ((Globals.enemies.length >= 1) && (rc.getRoundNum() - lastDefenseRound >= defenseWaitRounds)) {
+        boolean threatInRange = false;
+        for (RobotInfo r: Globals.enemies) {
+            switch (r.type) {
+                case SOLDIER, SPLASHER: {
+                    threatInRange = true;
+                    break;
+                }
+                default: continue;
+            }
+        }
+
+        int friendlyMoppersInRange = 0;
+        for (RobotInfo r: Globals.friends) {
+            switch (r.type) {
+                case MOPPER: ++friendlyMoppersInRange;
+                default: continue;
+            }
+        }
+
+        if ((threatInRange && (friendlyMoppersInRange < 2))
+         && ((rc.getRoundNum() - lastDefenseRound >= defenseWaitRounds) || (isPaintTower))) {
             shouldDefend = true;
             lastDefenseRound = rc.getRoundNum();
         }
