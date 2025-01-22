@@ -12,9 +12,16 @@ public class Tower {
     public static final int defenseWaitRounds = 30;
     public static UnitType unitToBuild = null;
     public static int enemyLastSeen = 0;
+    public static boolean isPaintTower = false;
+    public static boolean isMoneyTower = false;
     public static void init(RobotController rc) {
         Tower.rc = rc;
         enemyLastSeen = rc.getRoundNum();
+        switch(rc.getType()) {
+            case LEVEL_ONE_MONEY_TOWER, LEVEL_TWO_MONEY_TOWER, LEVEL_THREE_MONEY_TOWER -> isMoneyTower = true;
+            case LEVEL_ONE_PAINT_TOWER, LEVEL_TWO_PAINT_TOWER, LEVEL_THREE_PAINT_TOWER -> isPaintTower = true;
+            default -> {}
+        }
     }
 
     public static void run() throws GameActionException {
@@ -38,18 +45,27 @@ public class Tower {
     public static UnitType getUnitType() throws GameActionException {
         int money = rc.getMoney();
         int round = rc.getRoundNum();
-        UnitType answer;
-        if (round < 5) {
-            answer = UnitType.SOLDIER;
-        } else if (money < 2000 && Globals.getIncome() < 60) {
-            int total = (soldiersBuilt + moppersBuilt);
-            if (total % 5 < 4) answer = UnitType.SOLDIER;
-            else answer = UnitType.MOPPER;
-        } else {
+        UnitType answer = null;
+        if (round < 5) answer = UnitType.SOLDIER;
+        
+        else if (isPaintTower) {
             int total = (soldiersBuilt + splashersBuilt + moppersBuilt);
-            if (total % 5 < 2) answer = UnitType.SPLASHER;
-            else if (total % 5 < 4) answer = UnitType.SOLDIER;
-            else answer = UnitType.MOPPER;
+            if (total % 5 < 2) answer = UnitType.SOLDIER;
+            else if ((total % 5) == 2) answer = UnitType.MOPPER;
+            else answer = UnitType.SPLASHER;
+        }
+        
+        else if (!isPaintTower) {
+            if (rc.getPaint() < 200) {
+                answer = UnitType.MOPPER;
+            } else if (money >= 1250) {
+                if (splashersBuilt == 0) answer = UnitType.SPLASHER;
+                else answer = UnitType.SOLDIER;
+            } else {
+                if (moppersBuilt == 1) answer = UnitType.SOLDIER;
+                else if (soldiersBuilt < 2) answer = UnitType.SOLDIER;
+                else answer = UnitType.MOPPER;
+            }
         }
 
         switch (answer) {
@@ -70,14 +86,14 @@ public class Tower {
         UnitType t;
         if (shouldDefend) {
             t = UnitType.MOPPER;
-            rc.setIndicatorString("Defense! Making a mopper");
+            rc.setIndicatorString("PaintTower=" + isPaintTower + " - Defense! Making a mopper");
         } else if (unitToBuild == null) {
             unitToBuild = getUnitType();
             t = unitToBuild;
-            rc.setIndicatorString("Saving for " + t);
+            rc.setIndicatorString("PaintTower=" + isPaintTower + " - Saving for " + t);
         } else {
             t = unitToBuild;
-            rc.setIndicatorString("Saving for " + t);
+            rc.setIndicatorString("PaintTower=" + isPaintTower + " - Saving for " + t);
         }
 
 
