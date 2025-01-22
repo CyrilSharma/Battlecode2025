@@ -108,7 +108,7 @@ public class RefuelManager {
             int dist = SquareManager.m{{di+2}}{{dj+2}}.distanceSquaredTo(home);
             Direction dir = myloc.directionTo(SquareManager.m{{di+2}}{{dj+2}});
             penalties += ("" + dir + "=" + SquareManager.penalty{{di+2}}{{dj+2}} + " ");
-            if (SquareManager.penalty{{di+2}}{{dj+2}} <= 1 && dist < bestDist && rc.canMove(dir)) {
+            if (SquareManager.penalty{{di+2}}{{dj+2}} <= 4 && dist < bestDist && rc.canMove(dir)) {
                 bestDist = dist;
                 bestDir = dir;
             }

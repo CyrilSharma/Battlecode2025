@@ -12,9 +12,16 @@ public class Tower {
     public static final int defenseWaitRounds = 30;
     public static UnitType unitToBuild = null;
     public static int enemyLastSeen = 0;
+    public static boolean isPaintTower = false;
+    public static boolean isMoneyTower = false;
     public static void init(RobotController rc) {
         Tower.rc = rc;
         enemyLastSeen = rc.getRoundNum();
+        switch(rc.getType()) {
+            case LEVEL_ONE_MONEY_TOWER, LEVEL_TWO_MONEY_TOWER, LEVEL_THREE_MONEY_TOWER -> isMoneyTower = true;
+            case LEVEL_ONE_PAINT_TOWER, LEVEL_TWO_PAINT_TOWER, LEVEL_THREE_PAINT_TOWER -> isPaintTower = true;
+            default -> {}
+        }
     }
 
     public static void run() throws GameActionException {
@@ -26,7 +33,27 @@ public class Tower {
     public static void initTurn() throws GameActionException {
         myloc = rc.getLocation();
         shouldDefend = false;
-        if ((Globals.enemies.length >= 1) && (rc.getRoundNum() - lastDefenseRound >= defenseWaitRounds)) {
+        boolean threatInRange = false;
+        for (RobotInfo r: Globals.enemies) {
+            switch (r.type) {
+                case SOLDIER, SPLASHER: {
+                    threatInRange = true;
+                    break;
+                }
+                default: continue;
+            }
+        }
+
+        int friendlyMoppersInRange = 0;
+        for (RobotInfo r: Globals.friends) {
+            switch (r.type) {
+                case MOPPER: ++friendlyMoppersInRange;
+                default: continue;
+            }
+        }
+
+        if ((threatInRange && (friendlyMoppersInRange < 2)) &&
+            (rc.getRoundNum() - lastDefenseRound >= defenseWaitRounds)) {
             shouldDefend = true;
             lastDefenseRound = rc.getRoundNum();
         }
@@ -36,51 +63,108 @@ public class Tower {
     public static int splashersBuilt = 0;
     public static int moppersBuilt = 0;
     public static UnitType getUnitType() throws GameActionException {
+        // Early Game Spawning Logic.
+        if (rc.getRoundNum() <= 5) return UnitType.SOLDIER;
+        
+        // If have already select a unit, stick with that.
+        if (unitToBuild != null && isPaintTower) return unitToBuild;
+        
+        // If we've selected a unit, but we're low on paint now, make a mopper
+        else if (unitToBuild != null && !isPaintTower && (rc.getPaint() < 200))
+            return UnitType.MOPPER;
+        
+        
         int money = rc.getMoney();
-        int round = rc.getRoundNum();
-        UnitType answer;
-        if (round < 5) {
-            answer = UnitType.SOLDIER;
-        } else if (money < 2000 && Globals.getIncome() < 60) {
-            int total = (soldiersBuilt + moppersBuilt);
-            if (total % 5 < 4) answer = UnitType.SOLDIER;
-            else answer = UnitType.MOPPER;
-        } else {
-            int total = (soldiersBuilt + splashersBuilt + moppersBuilt);
-            if (total % 5 < 2) answer = UnitType.SPLASHER;
-            else if (total % 5 < 4) answer = UnitType.SOLDIER;
-            else answer = UnitType.MOPPER;
+
+        // Paint Tower Spawning Logic.
+        if (isPaintTower) {
+            if (money < 2000 && Globals.getIncome() < 80) {
+                // Mantain 3-2 ratio soldiers - moppers when we're trying to grow.
+                // if (1 * soldiersBuilt <= 4 * moppersBuilt) return UnitType.SOLDIER;
+                // else return UnitType.MOPPER;
+                return UnitType.SOLDIER;
+            } else {
+                // Mantain 2-2-1 ratio splashsers - soldiers - moppers when we're rich.
+                if ((splashersBuilt <= 2 * moppersBuilt) && (splashersBuilt <= soldiersBuilt)) {
+                    return UnitType.SPLASHER;
+                } else if ((soldiersBuilt <= 2 * moppersBuilt) && (soldiersBuilt < splashersBuilt)) {
+                    return UnitType.SOLDIER;
+                } else {
+                    return UnitType.MOPPER;
+                }
+            }
         }
 
-        switch (answer) {
-            case SOLDIER -> ++soldiersBuilt;
-            case SPLASHER -> ++splashersBuilt;
-            case MOPPER -> ++moppersBuilt;
-            default -> {}
+        // Money Tower Spawning Logic.
+        else if (!isPaintTower) {
+            if (rc.getPaint() < 200) {
+                // We don't have enough paint to make anything else.
+                return UnitType.MOPPER;
+            } else if (money < 2000 && Globals.getIncome() < 80) {
+                // Produce 2 soldiers and 1 Mopper.
+                if (moppersBuilt == 1) return UnitType.SOLDIER;
+                else if (soldiersBuilt < 2) return UnitType.SOLDIER;
+                else return UnitType.MOPPER;
+            } else {
+                if (soldiersBuilt == 0) return UnitType.SOLDIER;
+                else return UnitType.SPLASHER;
+
+                {# // Produce 1 splasher and 1 Soldier.
+                if (splashersBuilt == 0) return UnitType.SPLASHER;
+                else return UnitType.SOLDIER; #}
+            } 
         }
-        return answer;
+        
+        return null;
     }
 
 
     public static void runTurn() throws GameActionException {
         towerTryAttack();
+        towerTryUpgrade();
+        unitToBuild = getUnitType(); 
+        rc.setIndicatorString(
+            "PaintTower=" + isPaintTower + " - Saving for " + unitToBuild + "\n" + 
+            " s=" + soldiersBuilt + " sp=" + splashersBuilt + " mp=" + moppersBuilt);
+        if (unitToBuild == null) return;
+        if (rc.getPaint() < unitToBuild.paintCost) return;
+        
+        // This prevents us from spending so much that we start mitigating expansion.
+        if (!shouldDefend) {
+            int lim = 10;
+            if (rc.getMapHeight() * rc.getMapWidth() <= 600) lim = 50;
+            if (rc.getRoundNum() > lim) {
+                if (rc.getMoney() < (unitToBuild.moneyCost + 1000)) return;
+            }
+        }
+        
+
+        // Defense. We put this as an override to avoid deciding to make a mopper,
+        // The threat goes away, but we make a mopper anyways.
+        UnitType t = (shouldDefend) ? (UnitType.MOPPER) : (unitToBuild);
+        loop: {
+        {%- for direction in directions %}
+        {
+            MapLocation nextLoc = myloc.add({{ direction }});
+            if (rc.canBuildRobot(t, nextLoc)) {
+                rc.buildRobot(t, nextLoc);
+                switch (t) {
+                    case SOLDIER -> ++soldiersBuilt;
+                    case SPLASHER -> ++splashersBuilt;
+                    case MOPPER -> ++moppersBuilt;
+                    default -> {}
+                }
+                unitToBuild = null;
+                break loop;
+            }
+        }
+        {% endfor -%}
+        }
+    }
+
+    public static void towerTryUpgrade() throws GameActionException {
         if (Globals.enemies.length > 0)
             enemyLastSeen = rc.getRoundNum();
-
-        UnitType t;
-        if (shouldDefend) {
-            t = UnitType.MOPPER;
-            rc.setIndicatorString("Defense! Making a mopper");
-        } else if (unitToBuild == null) {
-            unitToBuild = getUnitType();
-            t = unitToBuild;
-            rc.setIndicatorString("Saving for " + t);
-        } else {
-            t = unitToBuild;
-            rc.setIndicatorString("Saving for " + t);
-        }
-
-
         if ((rc.getType() == UnitType.LEVEL_ONE_PAINT_TOWER)
             && (rc.getMoney() >= (UnitType.LEVEL_TWO_PAINT_TOWER.moneyCost + 1000))
             && (rc.getRoundNum() - enemyLastSeen >= 10)) {
@@ -89,30 +173,6 @@ public class Tower {
             && (rc.getMoney() >= (UnitType.LEVEL_THREE_PAINT_TOWER.moneyCost + 1000))
             && (rc.getRoundNum() - enemyLastSeen >= 10)) {
             rc.upgradeTower(rc.getLocation());
-        }
-
-        if (t == null) return;
-        if (rc.getPaint() < t.paintCost) return;
-        if (!shouldDefend) {
-            int lim = 10;
-            if (rc.getMapHeight() * rc.getMapWidth() <= 600) lim = 50;
-            if (rc.getRoundNum() > lim) {
-                if (rc.getMoney() < 1250) return;
-            }
-        }
-        
-        // This isn't great either.
-        loop: {
-        {%- for direction in directions %}
-        {
-            MapLocation nextLoc = myloc.add({{ direction }});
-            if (rc.canBuildRobot(t, nextLoc)) {
-                rc.buildRobot(t, nextLoc);
-                unitToBuild = null;
-                break loop;
-            }
-        }
-        {% endfor -%}
         }
     }
 
