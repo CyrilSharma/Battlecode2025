@@ -11,8 +11,10 @@ public class Tower {
     public static int lastDefenseRound = -100;
     public static final int defenseWaitRounds = 30;
     public static UnitType unitToBuild = null;
+    public static int enemyLastSeen = 0;
     public static void init(RobotController rc) {
         Tower.rc = rc;
+        enemyLastSeen = rc.getRoundNum();
     }
 
     public static void run() throws GameActionException {
@@ -20,6 +22,7 @@ public class Tower {
         runTurn();
     }
 
+    
     public static void initTurn() throws GameActionException {
         myloc = rc.getLocation();
         shouldDefend = false;
@@ -58,9 +61,12 @@ public class Tower {
         return answer;
     }
 
+
     public static void runTurn() throws GameActionException {
         towerTryAttack();
-        
+        if (Globals.enemies.length > 0)
+            enemyLastSeen = rc.getRoundNum();
+
         UnitType t;
         if (shouldDefend) {
             t = UnitType.MOPPER;
@@ -74,6 +80,16 @@ public class Tower {
             rc.setIndicatorString("Saving for " + t);
         }
 
+
+        if ((rc.getType() == UnitType.LEVEL_ONE_PAINT_TOWER)
+            && (rc.getMoney() >= (UnitType.LEVEL_TWO_PAINT_TOWER.moneyCost + 1000))
+            && (rc.getRoundNum() - enemyLastSeen >= 10)) {
+            rc.upgradeTower(rc.getLocation());
+        } else if ((rc.getType() == UnitType.LEVEL_TWO_PAINT_TOWER)
+            && (rc.getMoney() >= (UnitType.LEVEL_THREE_PAINT_TOWER.moneyCost + 1000))
+            && (rc.getRoundNum() - enemyLastSeen >= 10)) {
+            rc.upgradeTower(rc.getLocation());
+        }
 
         if (t == null) return;
         if (rc.getPaint() < t.paintCost) return;
