@@ -52,8 +52,8 @@ public class Tower {
             }
         }
 
-        if ((threatInRange && (friendlyMoppersInRange < 2))
-         && ((rc.getRoundNum() - lastDefenseRound >= defenseWaitRounds) || (isPaintTower))) {
+        if ((threatInRange && (friendlyMoppersInRange < 2)) &&
+            (rc.getRoundNum() - lastDefenseRound >= defenseWaitRounds)) {
             shouldDefend = true;
             lastDefenseRound = rc.getRoundNum();
         }
@@ -64,7 +64,7 @@ public class Tower {
     public static int moppersBuilt = 0;
     public static UnitType getUnitType() throws GameActionException {
         // Early Game Spawning Logic.
-        if (rc.getRoundNum() < 5) return UnitType.SOLDIER;
+        if (rc.getRoundNum() <= 5) return UnitType.SOLDIER;
         
         // If have already select a unit, stick with that.
         if (unitToBuild != null && isPaintTower) return unitToBuild;
@@ -80,8 +80,9 @@ public class Tower {
         if (isPaintTower) {
             if (money < 2000 && Globals.getIncome() < 80) {
                 // Mantain 3-2 ratio soldiers - moppers when we're trying to grow.
-                if (2 * soldiersBuilt <= 3 * moppersBuilt) return UnitType.SOLDIER;
-                else return UnitType.MOPPER;
+                // if (1 * soldiersBuilt <= 4 * moppersBuilt) return UnitType.SOLDIER;
+                // else return UnitType.MOPPER;
+                return UnitType.SOLDIER;
             } else {
                 // Mantain 2-2-1 ratio splashsers - soldiers - moppers when we're rich.
                 if ((splashersBuilt <= 2 * moppersBuilt) && (splashersBuilt <= soldiersBuilt)) {
@@ -105,9 +106,12 @@ public class Tower {
                 else if (soldiersBuilt < 2) return UnitType.SOLDIER;
                 else return UnitType.MOPPER;
             } else {
-                // Produce 1 splasher and 1 Soldier.
+                if (soldiersBuilt == 0) return UnitType.SOLDIER;
+                else return UnitType.SPLASHER;
+
+                {# // Produce 1 splasher and 1 Soldier.
                 if (splashersBuilt == 0) return UnitType.SPLASHER;
-                else return UnitType.SOLDIER;
+                else return UnitType.SOLDIER; #}
             } 
         }
         
@@ -130,7 +134,7 @@ public class Tower {
             int lim = 10;
             if (rc.getMapHeight() * rc.getMapWidth() <= 600) lim = 50;
             if (rc.getRoundNum() > lim) {
-                if (rc.getMoney() < 1250) return;
+                if (rc.getMoney() < (unitToBuild.moneyCost + 1000)) return;
             }
         }
         
