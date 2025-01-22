@@ -43,72 +43,69 @@ public class Tower {
     public static int splashersBuilt = 0;
     public static int moppersBuilt = 0;
     public static UnitType getUnitType() throws GameActionException {
+        // Early Game Spawning Logic.
+        if (rc.getRoundNum() < 5) return UnitType.SOLDIER;
+        
+        // If have already select a unit, stick with that.
+        if (unitToBuild != null && isPaintTower) return unitToBuild;
+        
+        // If we've selected a unit, but we're low on paint now, make a mopper
+        else if (unitToBuild != null && !isPaintTower && (rc.getPaint() < 200))
+            return UnitType.MOPPER;
+        
+        
         int money = rc.getMoney();
-        int round = rc.getRoundNum();
-        UnitType answer = null;
-        if (round < 5) answer = UnitType.SOLDIER;
-        
-        else if (isPaintTower) {
-            int total = (soldiersBuilt + splashersBuilt + moppersBuilt);
-            if (total % 5 < 2) answer = UnitType.SOLDIER;
-            else if ((total % 5) == 2) answer = UnitType.MOPPER;
-            else answer = UnitType.SPLASHER;
-        }
-        
-        else if (!isPaintTower) {
-            if (rc.getPaint() < 200) {
-                answer = UnitType.MOPPER;
-            } else if (money >= 1250) {
-                if (splashersBuilt == 0) answer = UnitType.SPLASHER;
-                else answer = UnitType.SOLDIER;
+
+        // Paint Tower Spawning Logic.
+        if (isPaintTower) {
+            if (money < 2000 && Globals.getIncome() < 80) {
+                // Mantain 3-2 ratio soldiers - moppers when we're trying to grow.
+                if (2 * soldiersBuilt <= 3 * moppersBuilt) return UnitType.SOLDIER;
+                else return UnitType.MOPPER;
             } else {
-                if (moppersBuilt == 1) answer = UnitType.SOLDIER;
-                else if (soldiersBuilt < 2) answer = UnitType.SOLDIER;
-                else answer = UnitType.MOPPER;
+                // Mantain 2-2-1 ratio splashsers - soldiers - moppers when we're rich.
+                if ((splashersBuilt <= 2 * moppersBuilt) && (splashersBuilt <= soldiersBuilt)) {
+                    return UnitType.SPLASHER;
+                } else if ((soldiersBuilt <= 2 * moppersBuilt) && (soldiersBuilt < splashersBuilt)) {
+                    return UnitType.SOLDIER;
+                } else {
+                    return UnitType.MOPPER;
+                }
             }
         }
 
-        switch (answer) {
-            case SOLDIER -> ++soldiersBuilt;
-            case SPLASHER -> ++splashersBuilt;
-            case MOPPER -> ++moppersBuilt;
-            default -> {}
+        // Money Tower Spawning Logic.
+        else if (!isPaintTower) {
+            if (rc.getPaint() < 200) {
+                // We don't have enough paint to make anything else.
+                return UnitType.MOPPER;
+            } else if (money < 2000 && Globals.getIncome() < 80) {
+                // Produce 2 soldiers and 1 Mopper.
+                if (moppersBuilt == 1) return UnitType.SOLDIER;
+                else if (soldiersBuilt < 2) return UnitType.SOLDIER;
+                else return UnitType.MOPPER;
+            } else {
+                // Produce 1 splasher and 1 Soldier.
+                if (splashersBuilt == 0) return UnitType.SPLASHER;
+                else return UnitType.SOLDIER;
+            } 
         }
-        return answer;
+        
+        return null;
     }
 
 
     public static void runTurn() throws GameActionException {
         towerTryAttack();
-        if (Globals.enemies.length > 0)
-            enemyLastSeen = rc.getRoundNum();
-
-        UnitType t;
-        if (shouldDefend) {
-            t = UnitType.MOPPER;
-            rc.setIndicatorString("PaintTower=" + isPaintTower + " - Defense! Making a mopper");
-        } else if (unitToBuild == null) {
-            unitToBuild = getUnitType();
-            t = unitToBuild;
-            rc.setIndicatorString("PaintTower=" + isPaintTower + " - Saving for " + t);
-        } else {
-            t = unitToBuild;
-            rc.setIndicatorString("PaintTower=" + isPaintTower + " - Saving for " + t);
-        }
-
-
-        if ((rc.getType() == UnitType.LEVEL_ONE_PAINT_TOWER)
-            && (rc.getMoney() >= (UnitType.LEVEL_TWO_PAINT_TOWER.moneyCost + 1000))
-            && (rc.getRoundNum() - enemyLastSeen >= 10)) {
-            rc.upgradeTower(rc.getLocation());
-        } else if ((rc.getType() == UnitType.LEVEL_TWO_PAINT_TOWER)
-            && (rc.getMoney() >= (UnitType.LEVEL_THREE_PAINT_TOWER.moneyCost + 1000))
-            && (rc.getRoundNum() - enemyLastSeen >= 10)) {
-            rc.upgradeTower(rc.getLocation());
-        }
-
-        if (t == null) return;
-        if (rc.getPaint() < t.paintCost) return;
+        towerTryUpgrade();
+        unitToBuild = getUnitType(); 
+        rc.setIndicatorString(
+            "PaintTower=" + isPaintTower + " - Saving for " + unitToBuild + "\n" + 
+            " s=" + soldiersBuilt + " sp=" + splashersBuilt + " mp=" + moppersBuilt);
+        if (unitToBuild == null) return;
+        if (rc.getPaint() < unitToBuild.paintCost) return;
+        
+        // This prevents us from spending so much that we start mitigating expansion.
         if (!shouldDefend) {
             int lim = 10;
             if (rc.getMapHeight() * rc.getMapWidth() <= 600) lim = 50;
@@ -117,18 +114,41 @@ public class Tower {
             }
         }
         
-        // This isn't great either.
+
+        // Defense. We put this as an override to avoid deciding to make a mopper,
+        // The threat goes away, but we make a mopper anyways.
+        UnitType t = (shouldDefend) ? (UnitType.MOPPER) : (unitToBuild);
         loop: {
         {%- for direction in directions %}
         {
             MapLocation nextLoc = myloc.add({{ direction }});
             if (rc.canBuildRobot(t, nextLoc)) {
                 rc.buildRobot(t, nextLoc);
+                switch (t) {
+                    case SOLDIER -> ++soldiersBuilt;
+                    case SPLASHER -> ++splashersBuilt;
+                    case MOPPER -> ++moppersBuilt;
+                    default -> {}
+                }
                 unitToBuild = null;
                 break loop;
             }
         }
         {% endfor -%}
+        }
+    }
+
+    public static void towerTryUpgrade() throws GameActionException {
+        if (Globals.enemies.length > 0)
+            enemyLastSeen = rc.getRoundNum();
+        if ((rc.getType() == UnitType.LEVEL_ONE_PAINT_TOWER)
+            && (rc.getMoney() >= (UnitType.LEVEL_TWO_PAINT_TOWER.moneyCost + 1000))
+            && (rc.getRoundNum() - enemyLastSeen >= 10)) {
+            rc.upgradeTower(rc.getLocation());
+        } else if ((rc.getType() == UnitType.LEVEL_TWO_PAINT_TOWER)
+            && (rc.getMoney() >= (UnitType.LEVEL_THREE_PAINT_TOWER.moneyCost + 1000))
+            && (rc.getRoundNum() - enemyLastSeen >= 10)) {
+            rc.upgradeTower(rc.getLocation());
         }
     }
 
