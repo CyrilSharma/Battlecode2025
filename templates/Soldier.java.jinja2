@@ -336,8 +336,15 @@ public class Soldier {
     }
     
     public static void runTurn() throws GameActionException {
+        buildTower = TowerBuild.getRuin(near);
+
+        if (TowerBuild.leaveMark != null) {
+            if (rc.canAttack(TowerBuild.leaveMark)) {
+                rc.attack(TowerBuild.leaveMark);
+            }
+        }
+
         if (rc.getNumberTowers() < 25 && rc.getPaint() < 50 && !reallyGoing) {
-            buildTower = TowerBuild.getRuin(near);
             if (buildTower != null && TowerBuild.enoughPaint(buildTower)) {
                 TowerBuild.makeTower(buildTower);
                 return;
@@ -354,7 +361,6 @@ public class Soldier {
         }
 
         if (TowerBuild.finishedTower != null){
-            rc.setIndicatorString("WWWWWWWW");
             TowerBuild.removePattern();
             return;
         }
@@ -368,7 +374,6 @@ public class Soldier {
             Attack.soldierAttackMicro();
             return;
         } else if (rc.getNumberTowers() < 25 && markedResource == null) {
-            buildTower = TowerBuild.getRuin(near);
             if (buildTower != null) {
                 TowerBuild.makeTower(buildTower);
                 return;
