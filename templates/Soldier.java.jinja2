@@ -205,9 +205,11 @@ public class Soldier {
         MapInfo mi;
         {% for i in range(4) %}
         tmp = new MapLocation(m.x + dx[(st + {{i}}) % 4], m.y + dy[(st + {{i}}) % 4]);
-        mi = rc.senseMapInfo(tmp);
-        if (okSRP(tmp) && mi.getMark() != PaintType.ALLY_PRIMARY) {
-            return tmp;
+        if (rc.canSenseLocation(tmp)) {
+            mi = rc.senseMapInfo(tmp);
+            if (okSRP(tmp) && mi.getMark() != PaintType.ALLY_PRIMARY) {
+                return tmp;
+            }
         }
         {% endfor %}
         return null;
@@ -345,7 +347,7 @@ public class Soldier {
         }
 
         if (rc.getNumberTowers() < 25 && rc.getPaint() < 50 && !reallyGoing) {
-            if (buildTower != null && TowerBuild.enoughPaint(buildTower)) {
+            if (buildTower != null && rc.canSenseLocation(buildTower) && TowerBuild.enoughPaint(buildTower)) {
                 TowerBuild.makeTower(buildTower);
                 return;
             }

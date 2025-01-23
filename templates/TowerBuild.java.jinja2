@@ -84,6 +84,17 @@ public class TowerBuild {
         if (prevRuin != null && rc.canSenseLocation(prevRuin) && last[prevRuin.x][prevRuin.y] < rc.getRoundNum() && (rc.getType() == UnitType.MOPPER && (seeTaintedRuin(prevRuin)) || (rc.getType() == UnitType.SOLDIER && seeIncompleteRuin(prevRuin)))){
             return prevRuin;
         } 
+        if (best == null) {
+            for (int j = TileLoader.maxRuinNum; --j >= 0;) {
+                if (TileLoader.seenRuins[j] != null) {
+                    int d = rc.getLocation().distanceSquaredTo(TileLoader.seenRuins[j]);
+                    if (d < closest) {
+                        closest = d;
+                        best = TileLoader.seenRuins[j];
+                    }
+                }
+            }
+        }
         return best;
     }
 
@@ -129,6 +140,7 @@ public class TowerBuild {
             MapInfo mi = rc.senseMapInfo(tmp);
             switch (mi.getPaint()) {
                 case ENEMY_SECONDARY, ENEMY_PRIMARY: {
+                    TileLoader.markBad(ruin);
                     return false;
                 }
                 default: {

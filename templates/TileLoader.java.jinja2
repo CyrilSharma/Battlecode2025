@@ -3,8 +3,11 @@ import battlecode.common.*;
 
 public class TileLoader {
     public static RobotController rc;
+    public static MapLocation[] seenRuins;
+    public static int maxRuinNum = 0;
     public static void init(RobotController rc) {
         TileLoader.rc = rc;
+        seenRuins = new MapLocation[50];
     }
 
     {%- set VISION_WIDTH = 9 -%}
@@ -15,6 +18,7 @@ public class TileLoader {
     public static long seen{{ i }} = 0;
     public static long wall{{ i }} = 0;
     public static long ruin{{ i }} = 0;
+    public static long bad_ruin{{ i }} = 0;
     public static long visited{{ i }} = 0;
 
     public static long seen_reversed{{ i }} = 0;
@@ -55,6 +59,33 @@ public class TileLoader {
         } 
     }
 
+    public static boolean badRuin(MapLocation ruin) throws GameActionException {
+        switch (ruin.y) {
+            {% for y in range(0, 60) -%}
+            case {{ y }} -> {
+                return ((bad_ruin{{ y }} >> ruin.x) & 1) == 1;
+            }
+            {% endfor -%}
+        } 
+        return false;
+    }
+
+    public static void markBad(MapLocation ruin) throws GameActionException {
+        switch (ruin.y) {
+            {% for y in range(0, 60) -%}
+            case {{ y }} -> {
+                bad_ruin{{ y }} |= 1L << ruin.x;
+                break;
+            }
+            {% endfor -%}
+        } 
+        for (int j = maxRuinNum; --j >= 0;) {
+            if (seenRuins[j] != null && seenRuins[j].equals(ruin)) {
+                seenRuins[j] = null;
+            }
+        }
+    }
+
     // Pretty cheap, there are no ruins within a 5x5 of other ruins.
     public static void loadRuins() throws GameActionException {
         {% for i in range(9) %}
@@ -67,6 +98,31 @@ public class TileLoader {
         MapLocation[] ruins = rc.senseNearbyRuins(-1);
         for (int i = ruins.length; --i >= 0; ) {
             MapLocation ruin = ruins[i];
+            RobotInfo r = rc.senseRobotAtLocation(ruin);
+            if (r == null && !badRuin(ruin)) {
+                //ok we can look through our list and if it is not there, add it to the first open spot?
+                int lst = maxRuinNum;
+                for (int j = maxRuinNum; --j >= 0;) {
+                    if (seenRuins[j] != null && seenRuins[j].equals(ruin)) {
+                        lst = -1;
+                        break;
+                    }
+                    if(seenRuins[j] == null) lst = j;
+                }
+                if (lst == maxRuinNum && maxRuinNum != 50) {
+                    seenRuins[maxRuinNum] = ruin;
+                    maxRuinNum++;
+                }
+                else if (lst != -1) seenRuins[lst] = ruin;
+            }
+            else {
+                //potentially remove from our list
+                for (int j = maxRuinNum; --j >= 0;) {
+                    if (seenRuins[j] != null && seenRuins[j].equals(ruin)) {
+                        seenRuins[j] = null;
+                    }
+                }
+            }
             switch (ruin.y) {
             {% for y in range(60) -%}
                 case {{ y }} -> {
