@@ -66,7 +66,7 @@ public class TowerBuild {
                 int d = m.distanceSquaredTo(rc.getLocation());
                 RobotInfo r = rc.senseRobotAtLocation(m);
                 if (r == null) {
-                    if (d < closest && last[m.x][m.y] < rc.getRoundNum() && (rc.getType() == UnitType.MOPPER && seeTaintedRuin(m)) || (rc.getType() == UnitType.SOLDIER && seeIncompleteRuin(m))) {
+                    if (d < closest && last[m.x][m.y] < rc.getRoundNum() && ((rc.getType() == UnitType.MOPPER && seeTaintedRuin(m)) || (rc.getType() == UnitType.SOLDIER && seeIncompleteRuin(m)))) {
                         closest = d;
                         best = m;
                     }
@@ -81,7 +81,7 @@ public class TowerBuild {
                 }
             }
         }
-        if (prevRuin != null && rc.canSenseLocation(prevRuin) && last[prevRuin.x][prevRuin.y] < rc.getRoundNum() && (rc.getType() == UnitType.MOPPER && (seeTaintedRuin(prevRuin)) || (rc.getType() == UnitType.SOLDIER && seeIncompleteRuin(prevRuin)))){
+        if (prevRuin != null && rc.canSenseLocation(prevRuin) && last[prevRuin.x][prevRuin.y] < rc.getRoundNum() && ((rc.getType() == UnitType.MOPPER && (seeTaintedRuin(prevRuin)) || (rc.getType() == UnitType.SOLDIER && seeIncompleteRuin(prevRuin))))){
             return prevRuin;
         } 
         return best;
