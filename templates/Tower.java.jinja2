@@ -22,11 +22,21 @@ public class Tower {
         runTurn();
     }
 
-    
+    public static MapLocation threatLoc = null;
     public static void initTurn() throws GameActionException {
         myloc = rc.getLocation();
+        threatLoc = null;
         shouldDefend = false;
-        if ((Globals.enemies.length >= 1) && (rc.getRoundNum() - lastDefenseRound >= defenseWaitRounds)) {
+        for (RobotInfo r: Globals.enemies) {
+            switch (r.type) {
+                case SOLDIER, SPLASHER: {
+                    threatLoc = r.location;
+                    break;
+                }
+                default: continue;
+            }
+        }
+        if ((threatLoc != null) && (rc.getRoundNum() - lastDefenseRound >= defenseWaitRounds)) {
             shouldDefend = true;
             lastDefenseRound = rc.getRoundNum();
         }
@@ -102,17 +112,31 @@ public class Tower {
         }
         
         // This isn't great either.
+        int closest = 100000000;
+        MapLocation bestLoc = null;
         loop: {
-        {%- for direction in directions %}
-        {
-            MapLocation nextLoc = myloc.add({{ direction }});
-            if (rc.canBuildRobot(t, nextLoc)) {
-                rc.buildRobot(t, nextLoc);
-                unitToBuild = null;
-                break loop;
+            {%- for direction in directions %}
+            {
+                MapLocation nextLoc = myloc.add({{ direction }});
+                if (rc.canBuildRobot(t, nextLoc)) {
+                    if (shouldDefend) {
+                        int d = threatLoc.distanceSquaredTo(nextLoc);
+                        if (d < closest) {
+                            closest = d;
+                            bestLoc = nextLoc;
+                        }
+                    } else {
+                        bestLoc = nextLoc;
+                        break loop;
+                    }
+                }
             }
+            {% endfor -%}
         }
-        {% endfor -%}
+        if (bestLoc != null && rc.canBuildRobot(t, bestLoc)) {
+            rc.setIndicatorString("Chose to build " + t + " at " + bestLoc);
+            rc.buildRobot(t, bestLoc);
+            unitToBuild = null;
         }
     }
 
