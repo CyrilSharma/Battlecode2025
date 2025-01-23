@@ -98,9 +98,17 @@ def tester(team1: str, team2: str, map: str):
         + f" -PoutputVerbose=false"
     )
 
-    output = subprocess.run(
-        command, capture_output=True, check=True, shell=True
-    )
+    output = ''
+    try:
+        output = subprocess.run(
+            command, capture_output=True, check=True, shell=True
+        )
+    except subprocess.CalledProcessError as e:
+        print(e.returncode)
+        print(e.output)
+        print(e.stderr)
+        return
+    
     lines = output.stdout.decode().split("\n")
     team1_game1, team2_game1 = parse_results_text(lines)
     winner = team1 if team1_game1 else team2
