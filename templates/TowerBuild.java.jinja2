@@ -129,6 +129,7 @@ public class TowerBuild {
             MapInfo mi = rc.senseMapInfo(tmp);
             switch (mi.getPaint()) {
                 case ENEMY_SECONDARY, ENEMY_PRIMARY: {
+                    last[ruin.x][ruin.y] = 5 + rc.getRoundNum();
                     return false;
                 }
                 default: {

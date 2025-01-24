@@ -10,9 +10,16 @@ public class Splasher {
     public static int paintCapacity = UnitType.SOLDIER.paintCapacity;
     public static int myPaint;
     public static boolean shouldGoHome = false;
+    public static boolean harrasser = true;
+    public static MapLocation center = null;
+    public static boolean reachedH = false;
+    public static boolean reachedR = false;
+    public static boolean reachedV = false;
+    public static boolean seenCenter = false;
 
     public static void init(RobotController rc) {
         Splasher.rc = rc;
+        center = new MapLocation(rc.getMapWidth() / 2, rc.getMapHeight() / 2);
     }
 
     public static void run() throws GameActionException {
@@ -42,9 +49,63 @@ public class Splasher {
             rc.setIndicatorString("Attacking");
             Attack.splasherAttackMicro();
             return;
-        } else {
-            Explore.explore(null);
         }
+        int sym = SymmetryChecker.HSYM + SymmetryChecker.RSYM + SymmetryChecker.VSYM;
+        if (sym > 1 && !seenCenter) {
+            if (rc.getLocation().distanceSquaredTo(center) <= 9) seenCenter = true;
+            else {
+                Pathing.pathTo(center);
+                return;
+            }
+        }
+        if (harrasser) {
+            int closest = 1000000000;
+            MapLocation best = null;
+            MapLocation target;
+            MapLocation ruin = RefuelManager.firstHome;
+            if (SymmetryChecker.RSYM != 0 && !reachedR) {
+                target = new MapLocation(rc.getMapWidth() - ruin.x - 1, rc.getMapHeight() - ruin.y - 1);
+                if (myloc.distanceSquaredTo(target) <= 9) {
+                    reachedR = true;
+                }
+                else {
+                    int d = rc.getLocation().distanceSquaredTo(target);
+                    if (d < closest) {
+                        best = target;
+                        closest = d;
+                    }
+                }
+            }
+            if (SymmetryChecker.HSYM != 0 && !reachedH) {
+                target = new MapLocation(ruin.x, rc.getMapHeight() - ruin.y - 1);
+                if (myloc.distanceSquaredTo(target) <= 9) {
+                    reachedH = true;
+                }
+                else {
+                    int d = rc.getLocation().distanceSquaredTo(target);
+                    if (d < closest) {
+                        best = target;
+                        closest = d;
+                    }
+                }
+            }
+            if (SymmetryChecker.VSYM != 0 && !reachedV) {
+                target = new MapLocation(rc.getMapWidth() - ruin.x - 1, ruin.y);
+                if (myloc.distanceSquaredTo(target) <= 9) {
+                    reachedV = true;
+                }
+                else {
+                    int d = rc.getLocation().distanceSquaredTo(target);
+                    if (d < closest) {
+                        best = target;
+                        closest = d;
+                    }
+                }
+            }
+            if (best != null) Pathing.pathTo(best);
+            else harrasser = false;
+        }
+        Explore.explore(null);
     }
 
     public static void postTurn() throws GameActionException {
