@@ -123,7 +123,7 @@ public class Attack {
         // Use GameConstant.
         boolean actionReady = (rc.isActionReady() && (rc.getPaint() >= 5) && !shouldWaitForFriend);
         int cooldownTurns = rc.getActionCooldownTurns();
-        {% debug('actionReady', 'cooldownTurns') %}
+        {# {% debug('actionReady', 'cooldownTurns') %} #}
         for (int i = Globals.friends.length; --i >= 0; ) {
             RobotInfo robot = Globals.friends[i];
             {% for i in range(9) -%}
@@ -138,12 +138,12 @@ public class Attack {
             {% endfor %}
         }
 
-        {% for i in range(0, 9) -%}
+        {# {% for i in range(0, 9) -%}
         {% set dir = shortDirections[i] %}
         {% debug('minDistToEnemy_' ~ dir, 'targetLoc_' ~ dir ~ '.x', 'canMove_' ~ dir,
                  'targetLoc_' ~ dir ~ '.y', 'penalty_' ~ dir, 'healthDmgAttackRange_' ~ dir,
                  'myHealthDmg_' ~ dir, 'towerHealth_' ~ dir, 'inActionRadius_' ~ dir) %}
-        {% endfor %}
+        {% endfor %} #}
 
         boolean bestWins = false;
         Direction bestDir = {{ directions[0] }};
@@ -154,15 +154,15 @@ public class Attack {
         {{ chooseBest(type, i) | indent(4) }}
         {% endfor %}
 
-        {% set dir = 'best' %}
+        {# {% set dir = 'best' %}
         {% debug('minDistToEnemy_' ~ dir, 'targetLoc_' ~ dir ~ '.x', 'canMove_' ~ dir,
                  'targetLoc_' ~ dir ~ '.y', 'penalty_' ~ dir, 'healthDmgAttackRange_' ~ dir,
                  'myHealthDmg_' ~ dir, 'towerHealth_' ~ dir, 'inActionRadius_' ~ dir) %}
         System.out.println("Chose: " + bestDir);
-        System.out.println("\n");
+        System.out.println("\n"); #}
 
         if (rc.canMove(bestDir)) {
-            rc.move(bestDir);
+            Pathing.move(bestDir);
         }
         {{type}}TryAttack();
     }

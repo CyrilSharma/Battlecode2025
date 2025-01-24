@@ -408,6 +408,7 @@ public class Soldier {
     public static void postTurn() throws GameActionException {
 
         // Lay paint where I am first.
+        myloc = rc.getLocation();
         if (canChangeColor(myloc) && rc.canAttack(myloc) && rc.getPaint() >= 50 && okToTile(myloc)){
             rc.attack(myloc, getGoodColor(myloc));
         }

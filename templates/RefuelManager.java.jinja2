@@ -121,7 +121,7 @@ public class RefuelManager {
         {% endfor %}
 
         rc.setIndicatorString(penalties);
-        if (bestDir != null) rc.move(bestDir);
+        if (bestDir != null) Pathing.move(bestDir);
     }
 
     public static void findPaintTower() throws GameActionException {
@@ -151,7 +151,7 @@ public class RefuelManager {
         {% endfor %}
 
         if (rc.canMove(bestDir))
-            rc.move(bestDir);
+            Pathing.move(bestDir);
         updatePositions();
     }
 

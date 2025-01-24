@@ -75,7 +75,7 @@ public class Pathing {
         if (myloc.equals(target)) return;
         if (myloc.isAdjacentTo(target)) {
             if (rc.canMove(myloc.directionTo(target))) {
-                rc.move(myloc.directionTo(target));
+                Pathing.move(myloc.directionTo(target));
             }
             return;
         }
@@ -101,7 +101,7 @@ public class Pathing {
             appendCurrentPosition();
             {% endfor %}
         }
-        
+        rc.setIndicatorDot(currentBugPosition, 0, 255, 255);
 
         long localMask0 = 0;
         long localMask1 = 0;
@@ -161,11 +161,11 @@ public class Pathing {
         long mask0AndPassible = mask0 & passible0;
         long mask1AndPassible = mask1 & passible1;
         bfsLoop: {
-            {% for iter in range(PATHING_ITERS) %}
+            {% for iter in range(2 * PATHING_ITERS) %}
             {# Can you think of another way to do this? This kinda sucks. #}
             adjIntersection = (localMask0 & adjTiles);
 
-            // if (adjIntersection == (passible0 & adjTiles)) break bfsLoop;
+            if (adjIntersection == (passible0 & adjTiles)) break bfsLoop;
             {% for dx in range(-1, 2) %}
             {% for dy in range(-1, 2) %}
             {% set x = dx + MIDDLE_OFFSET %}
@@ -185,6 +185,7 @@ public class Pathing {
             {% endfor %}
         }
         
+        SquareManager.computePaintPenalties();
 
         // Pick the best direction.
         // One thing I noticed is if units are going in opposite directions,
@@ -193,41 +194,75 @@ public class Pathing {
         {% set dirY = [1, 1, 0, -1, -1, -1,  0,  1, 0] %}
         {% set dirX = [0, 1, 1,  1,  0, -1, -1, -1, 0] %}
         Direction bestDir = null;
-        int bestPaint = -10000;
+        Direction backupDir = null;
+        int bestPenalty = 10000000;
         int bestDist = 10000000;
-        boolean canMove;
-
-        {# {% for i in range(8) %}
+        int bestBugDist = 10000000;
+        int centerBugDist = myloc.distanceSquaredTo(currentBugPosition);
+        {% for i in range(8) %}
         {% set dir = directions[i] %}
         {% set shortDir = shortDirections[i] %}
         {
             dists += {{ '"' + shortDir + '="' }} + dist{{dirX[i]+1}}{{dirY[i]+1}} + " ";
-            canMove = {{ 'rc.canMove(' ~ dir ~ ')' if dir != 'Direction.CENTER' else 'true' }};
+            // boolean canMove = {{ 'rc.canMove(' ~ dir ~ ')' if dir != 'Direction.CENTER' else 'true' }};
+            boolean canMove = rc.canMove({{dir}});
             MapLocation nloc = myloc.add({{dir}});
-            int nlocDist = currentBugPosition.distanceSquaredTo(nloc);
-            if (canMove && ((dist{{dirX[i]+1}}{{dirY[i]+1}} < bestDist) ||
-                            (dist{{dirX[i]+1}}{{dirY[i]+1}} == bestDist && nlocDist < bestDistSquared))) {
+            int penalty = SquareManager.penalty{{dirX[i]+2}}{{dirY[i]+2}};
+            int bugDist = nloc.distanceSquaredTo(currentBugPosition);
+            boolean shouldUpdate = false;
+            updateLabel: {
+                if (!canMove) break updateLabel;
+                backupDir = {{dir}};
+
+                // Only consider locations that improve the distance, to avoid cycles.
+                if (dist{{dirX[i]+1}}{{dirY[i]+1}} > dist{{1}}{{1}}) break updateLabel;
+                if (dist{{dirX[i]+1}}{{dirY[i]+1}} == dist{{1}}{{1}} && bugDist >= centerBugDist) break updateLabel;
+                
+                // Choose the location with lower penalty.
+                if (penalty != bestPenalty) {
+                    shouldUpdate = (penalty < bestPenalty);
+                    break updateLabel;
+                }
+
+                // Choose the location with lower BFS distance.
+                if (dist{{dirX[i]+1}}{{dirY[i]+1}} != bestDist) {
+                    shouldUpdate = dist{{dirX[i]+1}}{{dirY[i]+1}} < bestDist;
+                    break updateLabel;
+                }
+
+                // Choose the location with lower Bug distance.
+                if (bugDist != bestBugDist) {
+                    shouldUpdate = bugDist < bestBugDist;
+                    break updateLabel;
+                }
+            }
+
+            Direction dir = {{dir}};
+            int dist = dist{{dirX[i]+1}}{{dirY[i]+1}};
+            {% debug('dir', 'canMove', 'dist', 'penalty', 'bugDist', 'shouldUpdate') %}
+            if (shouldUpdate) {
                 bestDir = {{dir}};
                 bestDist = dist{{dirX[i]+1}}{{dirY[i]+1}};
-                bestDistSquared = nlocDist;
+                bestBugDist = bugDist;
+                bestPenalty = penalty;
             }
-        }
-        {% endfor %} #}
-
-        {% for i in range(8) %}
-        {% set dir = directions[i] %}
-        {% set shortDir = shortDirections[i] %}
-        dists += {{ '"' + shortDir + '="' }} + dist{{dirX[i]+1}}{{dirY[i]+1}} + " ";
-        canMove = {{ 'rc.canMove(' ~ dir ~ ')' if dir != 'Direction.CENTER' else 'true' }};
-        if (canMove && dist{{dirX[i]+1}}{{dirY[i]+1}} < bestDist) {
-            bestDir = {{dir}};
-            bestDist = dist{{dirX[i]+1}}{{dirY[i]+1}};
         }
         {% endfor %}
 
-        //rc.setIndicatorString("Left: " + (count - Clock.getBytecodeNum()));
-        if (bestDir != null && bestDir != Direction.CENTER)
-            rc.move(bestDir);
+        System.out.println("Chose := " + bestDir);
+        System.out.println("\n");
+
+        // Move in the best direction.
+        if (bestDir != null && bestDir != Direction.CENTER) {
+            Pathing.move(bestDir);
+        }
+        
+        // If we couldn't move in any good direction
+        // We are blocked by a unit, so choose some direction to backup into.
+        // To let the other unit through.
+        else if (backupDir != null) {
+            Pathing.move(backupDir);
+        }
         return;
     }
 
@@ -287,8 +322,9 @@ public class Pathing {
     }
 
     public static void greedy() throws GameActionException {
-        int closestDist = currentBugPosition.distanceSquaredTo(currentTarget);
-        MapLocation bestLoc = null;
+        int bestPenalty = 1000000;
+        int closestDist = 1000000;
+        MapLocation bestLoc = currentBugPosition;
         // Looping over all directions is kind of not great.
         {% for dir in directions %}
         {
@@ -297,9 +333,24 @@ public class Pathing {
                 if (rc.onTheMap(newLoc)) {
                     MapInfo mi = rc.senseMapInfo(newLoc);
                     if (mi.isPassable() || newLoc.equals(currentTarget)) {
+                        boolean shouldUpdate = false;
                         int d = newLoc.distanceSquaredTo(currentTarget);
-                        if (d < closestDist) {
+                        int penalty = switch(mi.getPaint()) {
+                            case ENEMY_PRIMARY, ENEMY_SECONDARY -> 2;
+                            case ALLY_PRIMARY, ALLY_SECONDARY -> 0;
+                            case EMPTY -> 1;
+                        };
+                        updateLabel: {
+                            if (d != closestDist) {
+                                shouldUpdate = (d < closestDist);
+                                break updateLabel;
+                            }
+                            shouldUpdate = penalty < bestPenalty;
+                            break updateLabel;
+                        }
+                        if (shouldUpdate) {
                             closestDist = d;
+                            bestPenalty = penalty;
                             bestLoc = newLoc;
                         }
                     }
@@ -312,9 +363,7 @@ public class Pathing {
         }        
         {% endfor %}
 
-        if (bestLoc != null) {
-            assert(bestLoc.distanceSquaredTo(currentTarget) < currentBugPosition.distanceSquaredTo(currentTarget));
-            assert(!currentBugPosition.equals(bestLoc));
+        if (!bestLoc.equals(currentBugPosition)) {
             currentBugPosition = bestLoc;
             return;
         } else {
@@ -333,5 +382,13 @@ public class Pathing {
         currentBugDirection = null;
         currentBugPosition = rc.getLocation();
         pathLength = 0;
+    }
+
+    public static void move(Direction dir) throws GameActionException {
+        rc.move(dir);
+        MapLocation myloc = rc.getLocation();
+        if (myloc.distanceSquaredTo(currentBugPosition) > GameConstants.VISION_RADIUS_SQUARED) {
+            setCurrentPosition();
+        }
     }
 }
