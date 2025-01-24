@@ -216,7 +216,9 @@ public class Attack {
         }
 
         // If both squares are out of action radius, prefer the one which is closer.
-        else if (!inActionRadius_{{best}} && !inActionRadius_{{dir}}) {
+        // This is necessary if we're far away, but if we're currently in action radius,
+        // Then there's really no difference between these two squares, so we should go for penalty instead.
+        else if (!inActionRadius_C && !inActionRadius_{{best}} && !inActionRadius_{{dir}}) {
             if (minDistToEnemy_{{best}} != minDistToEnemy_{{dir}}) {
                 bestWins = minDistToEnemy_{{best}} < minDistToEnemy_{{dir}};
                 break {{label}};
@@ -259,6 +261,15 @@ public class Attack {
         if (!canMove_{{dir}}) break {{label}};
         int d = targetLoc_{{dir}}.distanceSquaredTo({{robotVar}}.location);
         switch (robot.type) {
+            case MOPPER: {
+                // Expected Paint taken.
+                if (d <= UnitType.MOPPER.actionRadiusSquared) {
+                    penalty_{{dir}} += 3.3;
+                } else if (d <= 8) {
+                    penalty_{{dir}} += 2.5;
+                }
+                break {{label}};
+            }
             {% for tower in [
                 'LEVEL_ONE_DEFENSE_TOWER', 'LEVEL_ONE_MONEY_TOWER', 'LEVEL_ONE_PAINT_TOWER',
                 'LEVEL_THREE_DEFENSE_TOWER', 'LEVEL_THREE_MONEY_TOWER', 'LEVEL_THREE_PAINT_TOWER',
