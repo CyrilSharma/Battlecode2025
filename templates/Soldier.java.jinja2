@@ -336,8 +336,13 @@ public class Soldier {
     }
     
     public static void runTurn() throws GameActionException {
+        if (Attack.shouldSoldierMicro()) {
+            rc.setIndicatorString("Attacking");
+            Attack.soldierAttackMicro();
+            return;
+        }
+        
         buildTower = TowerBuild.getRuin(near);
-
         if (TowerBuild.leaveMark != null) {
             if (rc.canAttack(TowerBuild.leaveMark)) {
                 rc.attack(TowerBuild.leaveMark);
@@ -368,10 +373,6 @@ public class Soldier {
         if (shouldGoHome) {
             rc.setIndicatorString("Refueling");
             RefuelManager.refuel();
-            return;
-        } else if (Attack.shouldSoldierMicro()) {
-            rc.setIndicatorString("Attacking");
-            Attack.soldierAttackMicro();
             return;
         } else if (rc.getNumberTowers() < 25 && markedResource == null) {
             if (buildTower != null) {
