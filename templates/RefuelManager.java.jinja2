@@ -102,15 +102,19 @@ public class RefuelManager {
         String penalties = "";
         Direction bestDir = null;
         int bestDist = 10000000;
+        int bestPenalty = 10000000;
         {% for di in range(-1, 2) %}
         {% for dj in range(-1, 2) %}
         {
             int dist = SquareManager.m{{di+2}}{{dj+2}}.distanceSquaredTo(home);
             Direction dir = myloc.directionTo(SquareManager.m{{di+2}}{{dj+2}});
             penalties += ("" + dir + "=" + SquareManager.penalty{{di+2}}{{dj+2}} + " ");
-            if (SquareManager.penalty{{di+2}}{{dj+2}} <= 1 && dist < bestDist && rc.canMove(dir)) {
-                bestDist = dist;
-                bestDir = dir;
+            if (SquareManager.penalty{{di+2}}{{dj+2}} <= 4 && rc.canMove(dir)) {
+                if (dist < bestDist || (dist == bestDist && SquareManager.penalty{{di+2}}{{dj+2}} < bestPenalty)) {
+                    bestPenalty = SquareManager.penalty{{di+2}}{{dj+2}};
+                    bestDist = dist;
+                    bestDir = dir;
+                }
             }
         }
         {% endfor %}
