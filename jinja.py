@@ -1,6 +1,8 @@
 import argparse
 from jinja2 import Environment, FileSystemLoader, nodes
 from jinja2.ext import Extension
+from collections import defaultdict
+
 
 # Define the DebugExtension class
 class DebugExtension(Extension):
@@ -53,6 +55,19 @@ def capitalizeFirstLetter(s):
     if not s: return s
     return s[0].upper() + s[1:]
 
+def computeIncomeMap(maxSrps, maxMoneyTowers):
+    mp = defaultdict(list)
+    for srps in range(0, maxSrps):
+        for moneyTowers in range(0, maxMoneyTowers):
+            supposedIncome = moneyTowers * (20 + (3 * srps))
+            mp[supposedIncome].append((moneyTowers, srps))
+
+            if moneyTowers > 0:
+                # One of the money towers can be leveled...
+                supposedIncome = (30 + (3 * srps)) + (moneyTowers - 1) * (20 + (3 * srps))
+                mp[supposedIncome].append((moneyTowers, srps))
+    return dict(mp)
+
 def main():
     parser = argparse.ArgumentParser(description="Generate a .java file from a .java.jinja2 template.")
     parser.add_argument("--input", required=True, help="Path to the input .java.jinja2 template file.")
@@ -72,7 +87,7 @@ def main():
     env.globals['bitRightShift'] = bitRightShift
     env.globals['intDiv'] = intDiv
     env.globals['capitalizeFirstLetter'] = capitalizeFirstLetter
-
+    env.globals['computeIncomeMap'] = computeIncomeMap
     template = env.get_template(args.input)
     rendered_content = template.render(
         directions=[

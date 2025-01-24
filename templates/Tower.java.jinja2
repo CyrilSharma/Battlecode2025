@@ -51,7 +51,7 @@ public class Tower {
         UnitType answer;
         if (round < 5) {
             answer = UnitType.SOLDIER;
-        } else if (money < 2000 && Globals.getIncome() < 60) {
+        } else if (money < 2000 && Globals.numMoneyTowers < 3) {
             int total = (soldiersBuilt + moppersBuilt);
             if (total % 5 < 4) answer = UnitType.SOLDIER;
             else answer = UnitType.MOPPER;

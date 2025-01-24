@@ -3,6 +3,7 @@ import java.util.Random;
 import battlecode.common.*;
 
 public class Globals {
+    public static int born;
     public static int roundNum;
     public static RobotController rc;
     public static final Random rng = new Random();
@@ -13,7 +14,7 @@ public class Globals {
         Globals.rc = rc;
         moneyTower = rc.getTowerPattern(UnitType.LEVEL_ONE_MONEY_TOWER);
         paintTower = rc.getTowerPattern(UnitType.LEVEL_ONE_PAINT_TOWER);
-        Globals.born = rc.getRoundNum();
+        born = rc.getRoundNum();
     }
 
     public static RobotInfo[] friends;
@@ -22,7 +23,7 @@ public class Globals {
         friends = rc.senseNearbyRobots(-1, rc.getTeam());
         enemies = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
         roundNum = rc.getRoundNum();
-        updateIncomeTracker();
+        updateTowerTracker();
     }
 
     public static boolean onMap(MapLocation loc) throws GameActionException {
@@ -40,7 +41,8 @@ public class Globals {
             MapInfo s = rc.senseMapInfo(moneyMark);
             if (s.getMark() == PaintType.ALLY_SECONDARY) return UnitType.LEVEL_ONE_MONEY_TOWER;
         }
-        if (rc.getMoney() < 2000) return UnitType.LEVEL_ONE_MONEY_TOWER;
+        if (numPaintTowers == 0) return UnitType.LEVEL_ONE_PAINT_TOWER;
+        else if (rc.getMoney() < 2000) return UnitType.LEVEL_ONE_MONEY_TOWER;
         return UnitType.LEVEL_ONE_PAINT_TOWER;
     }
 
@@ -53,29 +55,55 @@ public class Globals {
         };
     }
 
-
-     // Income Tracking.
-    public static int born;
-    public static int income = GameConstants.NUMBER_INITIAL_MONEY_TOWERS * UnitType.LEVEL_ONE_MONEY_TOWER.moneyPerTurn;
-    public static int lastMoney = 0;
-    public static int moneyUpdateFreq = 30;
-    public static void updateIncomeTracker() throws GameActionException {
-        if (roundNum < moneyUpdateFreq) return;
-        int modulo = (roundNum % moneyUpdateFreq);
-        if (modulo == 0) {
-            lastMoney =  rc.getMoney();
-        } else if (modulo == 1) {
-            income = (rc.getMoney() - lastMoney);
+    public static int numSrps = 0;
+    public static int numMoneyTowers = 1;
+    public static int numPaintTowers = 1;
+    {% set WINDOW_LENGTH = 10 %}
+    {% for i in range(WINDOW_LENGTH) %}
+    public static int income{{i}} = 0;
+    public static int numTowers{{i}} = 0;
+    {% endfor %}
+    public static int lastMoney = GameConstants.INITIAL_TEAM_MONEY;
+    public static void updateTowerTracker() throws GameActionException {
+        int currentMoney = rc.getMoney();
+        int currentIncome = (currentMoney - lastMoney);
+        switch (roundNum % {{WINDOW_LENGTH}}) {
+            {% for i in range(WINDOW_LENGTH) %}
+            case {{i}} -> {
+                income{{i}} = currentIncome;
+                numTowers{{i}} = rc.getNumberTowers();
+            }
+            {% endfor %}
+            default -> {}
         }
-    }
+        lastMoney = currentMoney;
+        
+        int numTowers = 0;
+        int highestIncome = -1000000;
+        {% for i in range(WINDOW_LENGTH) %}
+        if (income{{i}} > highestIncome) {
+            highestIncome = income{{i}};
+            numTowers = numTowers{{i}};
+        }
+        {% endfor %}
+        if (highestIncome < 0) return;
 
-    public static boolean shouldStallForIncome() throws GameActionException {
-        if (roundNum < moneyUpdateFreq) return false;
-        int modulo = (roundNum % moneyUpdateFreq);
-        return (modulo == 0) || (modulo == 1);
-    }
-    
-    public static int getIncome() {
-        return income;
+        switchLabel: switch (highestIncome) {
+            {% for income, pairs in computeIncomeMap(maxSrps=25, maxMoneyTowers=25).items() %}
+            case {{income}} -> {
+                {% for (moneyTowers, srps) in pairs %}
+                if ({{ moneyTowers }} <= numTowers) {
+                    numSrps = {{ srps }};
+                    numMoneyTowers = {{ moneyTowers }};
+                    break switchLabel;
+                }
+                {% endfor %}
+            }
+            {% endfor %}
+            default -> {
+                return;
+            }
+        }
+        numPaintTowers = numTowers - numMoneyTowers;
     }
 }

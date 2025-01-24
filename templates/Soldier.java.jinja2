@@ -413,7 +413,7 @@ public class Soldier {
             rc.attack(myloc, getGoodColor(myloc));
         }
 
-        if (buildTower != null && !Globals.shouldStallForIncome()) {
+        if (buildTower != null) {
             if (rc.canCompleteTowerPattern(UnitType.LEVEL_ONE_PAINT_TOWER, buildTower)) {
                 rc.completeTowerPattern(UnitType.LEVEL_ONE_PAINT_TOWER, buildTower);
                 TowerBuild.finishedTower = buildTower;

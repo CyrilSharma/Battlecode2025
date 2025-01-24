@@ -28,7 +28,11 @@ public class RobotPlayer {
                         {{ classname }}.run();
                         SymmetryChecker.run();
                         Comms.run();
-                        // rc.setIndicatorString("Symmetry: R = " + SymmetryChecker.RSYM + " V = " + SymmetryChecker.VSYM + " H = " + SymmetryChecker.HSYM);
+                        rc.setIndicatorString(
+                            "Globals.numSrps := " + Globals.numSrps + ", " +
+                            "Globals.numMoneyTowers := " + Globals.numMoneyTowers + ", " +
+                            "Globals.numPaintTowers := " + Globals.numPaintTowers
+                        );
                     } catch (GameActionException e) {
                         System.out.println("Exception = ");
                         e.printStackTrace();
