@@ -33,8 +33,16 @@ public class MopperAttack {
     }
 
     public static void mopperTryAttack() throws GameActionException {
-        if ((rc.getPaint() < (UnitType.MOPPER.paintCapacity >> 1))
-         || (Globals.enemies.length == 1)) {
+        int nonMoppers = 0;
+        int moppers = 0;
+        for (RobotInfo r: Globals.enemies) {
+            switch (r.type) {
+                case SOLDIER, SPLASHER -> nonMoppers++;
+                case MOPPER -> moppers++;
+                default -> {}
+            }
+        }
+        if (nonMoppers == 1 && moppers == 0) {
             mopperHealAttack();
         } else {
             mopperMopAttack();
@@ -140,11 +148,12 @@ public class MopperAttack {
             {% endfor %}
         }
 
-        {# {% for i in range(0, 9) -%}
+        {% for i in range(0, 9) -%}
         {% set dir = shortDirections[i] %}
         {% debug('minDistToEnemy_' ~ dir, 'targetLoc_' ~ dir ~ '.x', 'canMove_' ~ dir,
-                 'targetLoc_' ~ dir ~ '.y', 'myPaintDmg_' ~ dir, 'paintDmgAttackRange_' ~ dir) %}
-        {% endfor %} #}
+                 'targetLoc_' ~ dir ~ '.y', 'myPaintDmg_' ~ dir, 'paintDmgAttackRange_' ~ dir,
+                 'penalty_' ~ dir, 'unitHealth_' ~ dir, 'inActionRadius_' ~ dir) %}
+        {% endfor %}
 
         boolean bestWins = false;
         Direction bestDir = {{ directions[0] }};
@@ -154,10 +163,11 @@ public class MopperAttack {
         {{ chooseBest(i) | indent(4) }}
         {% endfor %}
 
-        {# {% set dir = 'best' %}
+        {% set dir = 'best' %}
         {% debug('minDistToEnemy_' ~ dir, 'targetLoc_' ~ dir ~ '.x', 'canMove_' ~ dir,
-                 'targetLoc_' ~ dir ~ '.y', 'myPaintDmg_' ~ dir, 'paintDmgAttackRange_' ~ dir) %}
-        System.out.println("\n"); #}
+                 'targetLoc_' ~ dir ~ '.y', 'myPaintDmg_' ~ dir, 'paintDmgAttackRange_' ~ dir,
+                 'penalty_' ~ dir, 'unitHealth_' ~ dir, 'inActionRadius_' ~ dir) %}
+        System.out.println("\n");
 
         if (rc.canMove(bestDir)) {
             rc.move(bestDir);
@@ -174,11 +184,22 @@ public class MopperAttack {
     bestWins = canMove_{{best}};
     {{label}}: {
         if (!canMove_{{dir}} || !canMove_{{best}}) break {{label}};
+
+        // If one of the squares is in tower radius, choose the square that moves you away.
         if (inTowerRadius_{{best}} != inTowerRadius_{{dir}}) {
             bestWins = !inTowerRadius_{{best}};
             break {{label}};
         }
 
+        // If both squares are in tower radius, prefer the one which lets you get out of tower radius.
+        if (inTowerRadius_{{best}} && inTowerRadius_{{dir}}) {
+            if ((minDistToTower_{{best}} <= 2) != (minDistToTower_{{dir}} <= 2)) {
+                bestWins = !(minDistToTower_{{best}} <= 2);
+                break {{label}};
+            }
+        }
+
+        // Choose the square which lets me deal the most net paint damage.
         double bestPaintDmgDiff = paintDmgAttackRange_{{best}} - myPaintDmg_{{best}};
         double otherPaintDmgDiff = paintDmgAttackRange_{{dir}} - myPaintDmg_{{dir}};
         if (bestPaintDmgDiff != otherPaintDmgDiff) {
@@ -186,12 +207,47 @@ public class MopperAttack {
             break {{label}};
         }
 
-        if (penalty_{{best}} != penalty_{{dir}}) {
-            bestWins = penalty_{{best}} < penalty_{{dir}};   
-            break {{label}};
+        if (actionReady || shouldChase) {
+            // If I can attack at either square, prefer the one which lets me attack a low health unit.
+            if (inActionRadius_{{best}} && inActionRadius_{{dir}}) {
+                if (unitHealth_{{best}} != unitHealth_{{dir}}) {
+                    bestWins = unitHealth_{{best}} < unitHealth_{{dir}};
+                    break {{label}};
+                }
+            }
+
+            // If I can attack choose the square which gets me into action radius.
+            if (inActionRadius_{{best}} != inActionRadius_{{dir}}) {
+                bestWins = inActionRadius_{{best}};
+                break {{label}};
+            }
+        } else {
+            // If I can't attack, choose the square which gets me out of action radius.
+            if (inActionRadius_{{best}} != inActionRadius_{{dir}}) {
+                bestWins = !inActionRadius_{{best}};
+                break {{label}};
+            }
         }
 
-        bestWins = (minDistToEnemy_{{best}} <= minDistToEnemy_{{dir}});
+        // If both squares are in action radius, prefer the one which lets you get out of action radius.
+        // If you are chasing, then no need to do this, your prey can't fight back.
+        if (!shouldChase && inActionRadius_{{best}} && inActionRadius_{{dir}}) {
+            if ((minDistToEnemy_{{best}} <= 2) != (minDistToEnemy_{{dir}} <= 2)) {
+                bestWins = !(minDistToEnemy_{{best}} <= 2);
+                break {{label}};
+            }
+        }
+
+        // If both squares are out of action radius, prefer the one which is closer.
+        else if (!inActionRadius_{{best}} && !inActionRadius_{{dir}}) {
+            if (minDistToEnemy_{{best}} != minDistToEnemy_{{dir}}) {
+                bestWins = minDistToEnemy_{{best}} < minDistToEnemy_{{dir}};
+                break {{label}};
+            }
+        }
+
+        // All else equal, prefer the square with better paint penalty.
+        bestWins = (penalty_{{best}} <= penalty_{{dir}});
         break {{label}};
     }
     {# We can get rid of the copy if we use a switch.  #}
@@ -225,24 +281,40 @@ public class MopperAttack {
         switch (robot.type) {
             case SPLASHER: {
                 if (robot.paintAmount == 0 ) break {{label}};
-                if (actionReady && d <= mopperDesiredActionRadiusSquared) {
-                    myPaintDmg_{{dir}} = GameConstants.MOPPER_SWING_PAINT_DEPLETION;
+                if (d <= mopperDesiredActionRadiusSquared) {
+                    inActionRadius_{{dir}} = true;
+                    if (actionReady) {
+                        myPaintDmg_{{dir}} = GameConstants.MOPPER_SWING_PAINT_DEPLETION;
+                        if (robot.paintAmount < unitHealth_{{dir}}) {
+                            unitHealth_{{dir}} = robot.paintAmount;
+                        }
+                    }
                 }
                 if (d < minDistToEnemy_{{dir}}) minDistToEnemy_{{dir}} = d;
                 break {{label}};
             }
             case SOLDIER: {
                 if (robot.paintAmount == 0 ) break {{label}};
-                if (actionReady && d <= mopperDesiredActionRadiusSquared) {
-                    myPaintDmg_{{dir}} = GameConstants.MOPPER_SWING_PAINT_DEPLETION;
+                if (d <= mopperDesiredActionRadiusSquared) {
+                    inActionRadius_{{dir}} = true;
+                    if (actionReady) {
+                        myPaintDmg_{{dir}} = GameConstants.MOPPER_SWING_PAINT_DEPLETION;
+                        if (robot.paintAmount < unitHealth_{{dir}}) {
+                            unitHealth_{{dir}} = robot.paintAmount;
+                        }
+                    }
                 }
                 if (d < minDistToEnemy_{{dir}}) minDistToEnemy_{{dir}} = d;
+                if (robot.paintAmount < unitHealth_{{dir}}) unitHealth_{{dir}} = robot.paintAmount;
                 break {{label}};
             }
             case MOPPER: {
                 if (robot.paintAmount == 0 ) break {{label}};
-                if (actionReady && d <= mopperMaxActionRadiusSquared) {
-                    myPaintDmg_{{dir}} = GameConstants.MOPPER_SWING_PAINT_DEPLETION;
+                if (d <= mopperMaxActionRadiusSquared) {
+                    inActionRadius_{{dir}} = true;
+                    if (actionReady) {
+                        myPaintDmg_{{dir}} = GameConstants.MOPPER_SWING_PAINT_DEPLETION;
+                    }
                     paintDmgAttackRange_{{dir}} = GameConstants.MOPPER_SWING_PAINT_DEPLETION;
                 }
                 if (d < minDistToEnemy_{{dir}}) minDistToEnemy_{{dir}} = d;
@@ -254,6 +326,7 @@ public class MopperAttack {
                 'LEVEL_TWO_DEFENSE_TOWER', 'LEVEL_TWO_MONEY_TOWER', 'LEVEL_TWO_PAINT_TOWER'] -%}
             case {{tower}}: {
                 if (d <= UnitType.{{tower}}.actionRadiusSquared) inTowerRadius_{{dir}} = true;
+                if (d < minDistToTower_{{dir}}) minDistToTower_{{dir}} = d;
                 break {{label}};
             }
             {% endfor %}
@@ -279,13 +352,20 @@ public class MopperAttack {
     double myPaintDmg_{{suffix}} = 0;
     int minDistToEnemy_{{suffix}} = 100000;
     boolean inTowerRadius_{{suffix}} = false;
+    int unitHealth_{{suffix}} = 1000000;
+    int minDistToTower_{{suffix}} = 10000000;
+    boolean inActionRadius_{{suffix}} = false;
     {% endmacro -%}
     /* ################## INIT TARGET #################### */
     
     /*------------------ COPY --------------------*/
     {# WARNING THIS MUST BE UPDATED OR MICRO WILL HAVE BUGS #}
     {%- macro copy(dest, src) -%}
-    {%- for attribute in ['targetLoc', 'canMove', 'paintDmgAttackRange', 'myPaintDmg', 'minDistToEnemy', 'penalty', 'inTowerRadius'] -%}
+    {%- for attribute in [
+        'targetLoc', 'canMove', 'paintDmgAttackRange',
+        'myPaintDmg', 'minDistToEnemy', 'penalty',
+        'inTowerRadius', 'unitHealth', 'minDistToTower',
+        'inActionRadius'] -%}
     {{attribute}}_{{dest}} = {{attribute}}_{{src}};
     {% endfor -%}
     {% endmacro -%}
