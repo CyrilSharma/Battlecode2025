@@ -434,7 +434,7 @@ public class Soldier {
             }
         }
 
-        if (rc.getNumberTowers() < 25 && rc.getPaint() < 50 && !reallyGoing) {
+        if (rc.getNumberTowers() < 25 && rc.getPaint() <= 50 && !reallyGoing) {
             if (buildTower != null && TowerBuild.enoughPaint(buildTower)) {
                 TowerBuild.makeTower(buildTower);
                 return;
@@ -442,7 +442,7 @@ public class Soldier {
             else reallyGoing = true;
         }
 
-        if (markedResource != null && !reallyGoing && rc.getPaint() < 50) {
+        if (markedResource != null && !reallyGoing && rc.getPaint() <= 50) {
             if (enoughToSRP() && !reallyGoing){
                 makeResourcePatch();
                 return;
