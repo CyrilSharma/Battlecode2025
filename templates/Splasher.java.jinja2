@@ -141,8 +141,7 @@ public class Splasher {
             {% for k in range(-1, 2, 1) %}
             {% for l in range(-1, 2, 1) %} 
             switch (mpaint{{i+k+3}}{{j+l+3}}) {
-                case EMPTY -> count += 1;
-                case ENEMY_PRIMARY, ENEMY_SECONDARY -> count += 2;
+                case ENEMY_PRIMARY, ENEMY_SECONDARY -> count += 1;
                 default -> {}
             }
             {% endfor %}
@@ -156,7 +155,7 @@ public class Splasher {
         {% endfor %}
 
         {# rc.setIndicatorString("bestCount: " + bestCount + " " + bestLoc.x + " " + bestLoc.y); #}
-        if (bestCount > 5) {
+        if (bestCount >= 4) {
             rc.attack(bestLoc);
         }
     }
