@@ -7,6 +7,7 @@ public class RefuelManager {
     public static int homeState;
     public static MapLocation home = null;
     public static boolean reachedHome = false;
+    public static MapLocation firstHome = null;
 
     {% set numberPreviousPositions = 10 %}
     {% for i in range(numberPreviousPositions) %}
@@ -60,6 +61,9 @@ public class RefuelManager {
                 home = ruin;
                 homeState = towerState;
                 reachedHome = false;
+            }
+            if (firstHome == null) {
+                firstHome = ruin;
             }
         }
     }
