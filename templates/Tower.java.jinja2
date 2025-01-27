@@ -36,9 +36,9 @@ public class Tower {
                 default: continue;
             }
         }
-        if ((threatLoc != null) && (rc.getRoundNum() - lastDefenseRound >= defenseWaitRounds)) {
+        if ((threatLoc != null)
+         && (rc.getRoundNum() - lastDefenseRound >= defenseWaitRounds)) {
             shouldDefend = true;
-            lastDefenseRound = rc.getRoundNum();
         }
     }
 
@@ -134,6 +134,7 @@ public class Tower {
             {% endfor -%}
         }
         if (bestLoc != null && rc.canBuildRobot(t, bestLoc)) {
+            if (shouldDefend) lastDefenseRound = rc.getRoundNum();
             rc.setIndicatorString("Chose to build " + t + " at " + bestLoc);
             rc.buildRobot(t, bestLoc);
             unitToBuild = null;
