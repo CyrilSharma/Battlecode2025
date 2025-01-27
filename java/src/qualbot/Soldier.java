@@ -1,0 +1,1930 @@
+
+
+package qualbot;
+import battlecode.common.*;
+import java.util.ArrayList;
+import java.util.Collections;
+
+public class Soldier {
+    public static RobotController rc;
+    public static boolean homeHasPaint = false;
+    public static MapLocation buildTower = null;
+    public static MapLocation myloc;
+    public static int paintCapacity = UnitType.SOLDIER.paintCapacity;
+    public static int myPaint;
+    public static MapLocation exploreTarget;
+    public static MapInfo[] near;
+    public static MapLocation ruinLoc;
+    public static MapLocation markedResource = null;
+    public static boolean[][] resourcePat = null;
+    public static boolean shouldGoHome = false;
+    public static boolean moved = false;
+    public static MapLocation returnLoc = null;
+    public static boolean reallyGoing = false;
+    public static boolean seenCenter = false;
+    public static boolean harrasser = false;
+    public static MapLocation center = null;
+    public static boolean reachedH = false;
+    public static boolean reachedR = false;
+    public static boolean reachedV = false;
+    public static boolean wasHarrasser = false;
+
+    public static MapLocation chunkGoal = null;
+
+    public static int[] dy = {0, 0, 4, -4};
+    public static int[] dx = {-4, 4, 0, 0};
+
+    public static int[] dx8 = {0, 1, 1, 1, 0, -1, -1, -1};
+    public static int[] dy8 = {1, 1, 0, -1, -1, -1, 0, 1};
+
+    public static void init(RobotController rc) {
+        Soldier.rc = rc;
+        resourcePat = rc.getResourcePattern();
+        center = new MapLocation(rc.getMapWidth() / 2, rc.getMapHeight() / 2);
+    }
+
+    public static boolean shouldUseSecond(MapLocation loc, MapLocation center) throws GameActionException {
+        return resourcePat[2 + (loc.x - center.x)][2 + (loc.y - center.y)];
+    }
+
+    public static boolean okToTile(MapLocation m) throws GameActionException {
+        if (rc.canSenseLocation(m)) {
+            MapInfo mc = rc.senseMapInfo(m);
+            if (mc.getPaint() != PaintType.EMPTY) return false;
+        }
+        if (rc.getNumberTowers() == 25) return true;
+        for (int i = 3; --i >= -2; ){
+            for (int j = 3; --j >= -2; ){
+                if (i == 0 && j == 0) continue;
+                MapLocation tmp = new MapLocation(m.x + i, m.y + j);
+                if (rc.canSenseLocation(tmp)) {
+                    MapInfo mi = rc.senseMapInfo(tmp);
+                    if (mi.hasRuin()) {
+                        RobotInfo r = rc.senseRobotAtLocation(tmp);
+                        if (r == null) return false;
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
+    public static void checkMoneyPatterns() throws GameActionException {
+        MapLocation tmp;
+        
+        
+        
+        tmp = new MapLocation(myloc.x + 2, myloc.y + 2);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (mi.getMark() == PaintType.ALLY_PRIMARY) {
+                if (rc.canCompleteResourcePattern(tmp)) {
+                    rc.completeResourcePattern(tmp);
+                    return;
+                }
+            }
+        }
+        
+        
+        
+        tmp = new MapLocation(myloc.x + 2, myloc.y + 1);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (mi.getMark() == PaintType.ALLY_PRIMARY) {
+                if (rc.canCompleteResourcePattern(tmp)) {
+                    rc.completeResourcePattern(tmp);
+                    return;
+                }
+            }
+        }
+        
+        
+        
+        tmp = new MapLocation(myloc.x + 2, myloc.y + 0);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (mi.getMark() == PaintType.ALLY_PRIMARY) {
+                if (rc.canCompleteResourcePattern(tmp)) {
+                    rc.completeResourcePattern(tmp);
+                    return;
+                }
+            }
+        }
+        
+        
+        
+        tmp = new MapLocation(myloc.x + 2, myloc.y + -1);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (mi.getMark() == PaintType.ALLY_PRIMARY) {
+                if (rc.canCompleteResourcePattern(tmp)) {
+                    rc.completeResourcePattern(tmp);
+                    return;
+                }
+            }
+        }
+        
+        
+        
+        tmp = new MapLocation(myloc.x + 2, myloc.y + -2);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (mi.getMark() == PaintType.ALLY_PRIMARY) {
+                if (rc.canCompleteResourcePattern(tmp)) {
+                    rc.completeResourcePattern(tmp);
+                    return;
+                }
+            }
+        }
+        
+        
+        
+        
+        
+        tmp = new MapLocation(myloc.x + 1, myloc.y + 2);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (mi.getMark() == PaintType.ALLY_PRIMARY) {
+                if (rc.canCompleteResourcePattern(tmp)) {
+                    rc.completeResourcePattern(tmp);
+                    return;
+                }
+            }
+        }
+        
+        
+        
+        tmp = new MapLocation(myloc.x + 1, myloc.y + 1);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (mi.getMark() == PaintType.ALLY_PRIMARY) {
+                if (rc.canCompleteResourcePattern(tmp)) {
+                    rc.completeResourcePattern(tmp);
+                    return;
+                }
+            }
+        }
+        
+        
+        
+        tmp = new MapLocation(myloc.x + 1, myloc.y + 0);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (mi.getMark() == PaintType.ALLY_PRIMARY) {
+                if (rc.canCompleteResourcePattern(tmp)) {
+                    rc.completeResourcePattern(tmp);
+                    return;
+                }
+            }
+        }
+        
+        
+        
+        tmp = new MapLocation(myloc.x + 1, myloc.y + -1);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (mi.getMark() == PaintType.ALLY_PRIMARY) {
+                if (rc.canCompleteResourcePattern(tmp)) {
+                    rc.completeResourcePattern(tmp);
+                    return;
+                }
+            }
+        }
+        
+        
+        
+        tmp = new MapLocation(myloc.x + 1, myloc.y + -2);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (mi.getMark() == PaintType.ALLY_PRIMARY) {
+                if (rc.canCompleteResourcePattern(tmp)) {
+                    rc.completeResourcePattern(tmp);
+                    return;
+                }
+            }
+        }
+        
+        
+        
+        
+        
+        tmp = new MapLocation(myloc.x + 0, myloc.y + 2);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (mi.getMark() == PaintType.ALLY_PRIMARY) {
+                if (rc.canCompleteResourcePattern(tmp)) {
+                    rc.completeResourcePattern(tmp);
+                    return;
+                }
+            }
+        }
+        
+        
+        
+        tmp = new MapLocation(myloc.x + 0, myloc.y + 1);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (mi.getMark() == PaintType.ALLY_PRIMARY) {
+                if (rc.canCompleteResourcePattern(tmp)) {
+                    rc.completeResourcePattern(tmp);
+                    return;
+                }
+            }
+        }
+        
+        
+        
+        
+        
+        tmp = new MapLocation(myloc.x + 0, myloc.y + -1);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (mi.getMark() == PaintType.ALLY_PRIMARY) {
+                if (rc.canCompleteResourcePattern(tmp)) {
+                    rc.completeResourcePattern(tmp);
+                    return;
+                }
+            }
+        }
+        
+        
+        
+        tmp = new MapLocation(myloc.x + 0, myloc.y + -2);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (mi.getMark() == PaintType.ALLY_PRIMARY) {
+                if (rc.canCompleteResourcePattern(tmp)) {
+                    rc.completeResourcePattern(tmp);
+                    return;
+                }
+            }
+        }
+        
+        
+        
+        
+        
+        tmp = new MapLocation(myloc.x + -1, myloc.y + 2);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (mi.getMark() == PaintType.ALLY_PRIMARY) {
+                if (rc.canCompleteResourcePattern(tmp)) {
+                    rc.completeResourcePattern(tmp);
+                    return;
+                }
+            }
+        }
+        
+        
+        
+        tmp = new MapLocation(myloc.x + -1, myloc.y + 1);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (mi.getMark() == PaintType.ALLY_PRIMARY) {
+                if (rc.canCompleteResourcePattern(tmp)) {
+                    rc.completeResourcePattern(tmp);
+                    return;
+                }
+            }
+        }
+        
+        
+        
+        tmp = new MapLocation(myloc.x + -1, myloc.y + 0);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (mi.getMark() == PaintType.ALLY_PRIMARY) {
+                if (rc.canCompleteResourcePattern(tmp)) {
+                    rc.completeResourcePattern(tmp);
+                    return;
+                }
+            }
+        }
+        
+        
+        
+        tmp = new MapLocation(myloc.x + -1, myloc.y + -1);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (mi.getMark() == PaintType.ALLY_PRIMARY) {
+                if (rc.canCompleteResourcePattern(tmp)) {
+                    rc.completeResourcePattern(tmp);
+                    return;
+                }
+            }
+        }
+        
+        
+        
+        tmp = new MapLocation(myloc.x + -1, myloc.y + -2);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (mi.getMark() == PaintType.ALLY_PRIMARY) {
+                if (rc.canCompleteResourcePattern(tmp)) {
+                    rc.completeResourcePattern(tmp);
+                    return;
+                }
+            }
+        }
+        
+        
+        
+        
+        
+        tmp = new MapLocation(myloc.x + -2, myloc.y + 2);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (mi.getMark() == PaintType.ALLY_PRIMARY) {
+                if (rc.canCompleteResourcePattern(tmp)) {
+                    rc.completeResourcePattern(tmp);
+                    return;
+                }
+            }
+        }
+        
+        
+        
+        tmp = new MapLocation(myloc.x + -2, myloc.y + 1);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (mi.getMark() == PaintType.ALLY_PRIMARY) {
+                if (rc.canCompleteResourcePattern(tmp)) {
+                    rc.completeResourcePattern(tmp);
+                    return;
+                }
+            }
+        }
+        
+        
+        
+        tmp = new MapLocation(myloc.x + -2, myloc.y + 0);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (mi.getMark() == PaintType.ALLY_PRIMARY) {
+                if (rc.canCompleteResourcePattern(tmp)) {
+                    rc.completeResourcePattern(tmp);
+                    return;
+                }
+            }
+        }
+        
+        
+        
+        tmp = new MapLocation(myloc.x + -2, myloc.y + -1);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (mi.getMark() == PaintType.ALLY_PRIMARY) {
+                if (rc.canCompleteResourcePattern(tmp)) {
+                    rc.completeResourcePattern(tmp);
+                    return;
+                }
+            }
+        }
+        
+        
+        
+        tmp = new MapLocation(myloc.x + -2, myloc.y + -2);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (mi.getMark() == PaintType.ALLY_PRIMARY) {
+                if (rc.canCompleteResourcePattern(tmp)) {
+                    rc.completeResourcePattern(tmp);
+                    return;
+                }
+            }
+        }
+        
+        
+        
+    }
+
+    public static boolean canChangeColor(MapInfo mi) throws GameActionException {
+        return (mi.getPaint().isAlly() || mi.getPaint() == PaintType.EMPTY);
+    }
+
+    public static boolean canChangeColor(MapLocation m) throws GameActionException {
+        if (!rc.canSenseLocation(m)) return false;
+        MapInfo mi = rc.senseMapInfo(m);
+        return canChangeColor(mi);
+    }
+
+    public static boolean visited(MapLocation m) throws GameActionException {
+       switch (m.y) {
+            case 0 -> {
+                return ((TileLoader.visited0 >> m.x) & 1) == 1;
+            }
+            case 1 -> {
+                return ((TileLoader.visited1 >> m.x) & 1) == 1;
+            }
+            case 2 -> {
+                return ((TileLoader.visited2 >> m.x) & 1) == 1;
+            }
+            case 3 -> {
+                return ((TileLoader.visited3 >> m.x) & 1) == 1;
+            }
+            case 4 -> {
+                return ((TileLoader.visited4 >> m.x) & 1) == 1;
+            }
+            case 5 -> {
+                return ((TileLoader.visited5 >> m.x) & 1) == 1;
+            }
+            case 6 -> {
+                return ((TileLoader.visited6 >> m.x) & 1) == 1;
+            }
+            case 7 -> {
+                return ((TileLoader.visited7 >> m.x) & 1) == 1;
+            }
+            case 8 -> {
+                return ((TileLoader.visited8 >> m.x) & 1) == 1;
+            }
+            case 9 -> {
+                return ((TileLoader.visited9 >> m.x) & 1) == 1;
+            }
+            case 10 -> {
+                return ((TileLoader.visited10 >> m.x) & 1) == 1;
+            }
+            case 11 -> {
+                return ((TileLoader.visited11 >> m.x) & 1) == 1;
+            }
+            case 12 -> {
+                return ((TileLoader.visited12 >> m.x) & 1) == 1;
+            }
+            case 13 -> {
+                return ((TileLoader.visited13 >> m.x) & 1) == 1;
+            }
+            case 14 -> {
+                return ((TileLoader.visited14 >> m.x) & 1) == 1;
+            }
+            case 15 -> {
+                return ((TileLoader.visited15 >> m.x) & 1) == 1;
+            }
+            case 16 -> {
+                return ((TileLoader.visited16 >> m.x) & 1) == 1;
+            }
+            case 17 -> {
+                return ((TileLoader.visited17 >> m.x) & 1) == 1;
+            }
+            case 18 -> {
+                return ((TileLoader.visited18 >> m.x) & 1) == 1;
+            }
+            case 19 -> {
+                return ((TileLoader.visited19 >> m.x) & 1) == 1;
+            }
+            case 20 -> {
+                return ((TileLoader.visited20 >> m.x) & 1) == 1;
+            }
+            case 21 -> {
+                return ((TileLoader.visited21 >> m.x) & 1) == 1;
+            }
+            case 22 -> {
+                return ((TileLoader.visited22 >> m.x) & 1) == 1;
+            }
+            case 23 -> {
+                return ((TileLoader.visited23 >> m.x) & 1) == 1;
+            }
+            case 24 -> {
+                return ((TileLoader.visited24 >> m.x) & 1) == 1;
+            }
+            case 25 -> {
+                return ((TileLoader.visited25 >> m.x) & 1) == 1;
+            }
+            case 26 -> {
+                return ((TileLoader.visited26 >> m.x) & 1) == 1;
+            }
+            case 27 -> {
+                return ((TileLoader.visited27 >> m.x) & 1) == 1;
+            }
+            case 28 -> {
+                return ((TileLoader.visited28 >> m.x) & 1) == 1;
+            }
+            case 29 -> {
+                return ((TileLoader.visited29 >> m.x) & 1) == 1;
+            }
+            case 30 -> {
+                return ((TileLoader.visited30 >> m.x) & 1) == 1;
+            }
+            case 31 -> {
+                return ((TileLoader.visited31 >> m.x) & 1) == 1;
+            }
+            case 32 -> {
+                return ((TileLoader.visited32 >> m.x) & 1) == 1;
+            }
+            case 33 -> {
+                return ((TileLoader.visited33 >> m.x) & 1) == 1;
+            }
+            case 34 -> {
+                return ((TileLoader.visited34 >> m.x) & 1) == 1;
+            }
+            case 35 -> {
+                return ((TileLoader.visited35 >> m.x) & 1) == 1;
+            }
+            case 36 -> {
+                return ((TileLoader.visited36 >> m.x) & 1) == 1;
+            }
+            case 37 -> {
+                return ((TileLoader.visited37 >> m.x) & 1) == 1;
+            }
+            case 38 -> {
+                return ((TileLoader.visited38 >> m.x) & 1) == 1;
+            }
+            case 39 -> {
+                return ((TileLoader.visited39 >> m.x) & 1) == 1;
+            }
+            case 40 -> {
+                return ((TileLoader.visited40 >> m.x) & 1) == 1;
+            }
+            case 41 -> {
+                return ((TileLoader.visited41 >> m.x) & 1) == 1;
+            }
+            case 42 -> {
+                return ((TileLoader.visited42 >> m.x) & 1) == 1;
+            }
+            case 43 -> {
+                return ((TileLoader.visited43 >> m.x) & 1) == 1;
+            }
+            case 44 -> {
+                return ((TileLoader.visited44 >> m.x) & 1) == 1;
+            }
+            case 45 -> {
+                return ((TileLoader.visited45 >> m.x) & 1) == 1;
+            }
+            case 46 -> {
+                return ((TileLoader.visited46 >> m.x) & 1) == 1;
+            }
+            case 47 -> {
+                return ((TileLoader.visited47 >> m.x) & 1) == 1;
+            }
+            case 48 -> {
+                return ((TileLoader.visited48 >> m.x) & 1) == 1;
+            }
+            case 49 -> {
+                return ((TileLoader.visited49 >> m.x) & 1) == 1;
+            }
+            case 50 -> {
+                return ((TileLoader.visited50 >> m.x) & 1) == 1;
+            }
+            case 51 -> {
+                return ((TileLoader.visited51 >> m.x) & 1) == 1;
+            }
+            case 52 -> {
+                return ((TileLoader.visited52 >> m.x) & 1) == 1;
+            }
+            case 53 -> {
+                return ((TileLoader.visited53 >> m.x) & 1) == 1;
+            }
+            case 54 -> {
+                return ((TileLoader.visited54 >> m.x) & 1) == 1;
+            }
+            case 55 -> {
+                return ((TileLoader.visited55 >> m.x) & 1) == 1;
+            }
+            case 56 -> {
+                return ((TileLoader.visited56 >> m.x) & 1) == 1;
+            }
+            case 57 -> {
+                return ((TileLoader.visited57 >> m.x) & 1) == 1;
+            }
+            case 58 -> {
+                return ((TileLoader.visited58 >> m.x) & 1) == 1;
+            }
+            case 59 -> {
+                return ((TileLoader.visited59 >> m.x) & 1) == 1;
+            }
+            } 
+        return false;
+    }
+
+    public static boolean isOk(MapLocation p, MapLocation q) throws GameActionException {
+        MapLocation tmp;
+        
+        
+        tmp = new MapLocation(q.x + 2, q.y + 2);
+        if (rc.canSenseLocation(tmp)) {
+            if (tmp.distanceSquaredTo(p) <= 8) {
+                if (shouldUseSecond(tmp, p) != shouldUseSecond(tmp, q)) return false;
+            }
+        }
+        
+        tmp = new MapLocation(q.x + 2, q.y + 1);
+        if (rc.canSenseLocation(tmp)) {
+            if (tmp.distanceSquaredTo(p) <= 8) {
+                if (shouldUseSecond(tmp, p) != shouldUseSecond(tmp, q)) return false;
+            }
+        }
+        
+        tmp = new MapLocation(q.x + 2, q.y + 0);
+        if (rc.canSenseLocation(tmp)) {
+            if (tmp.distanceSquaredTo(p) <= 8) {
+                if (shouldUseSecond(tmp, p) != shouldUseSecond(tmp, q)) return false;
+            }
+        }
+        
+        tmp = new MapLocation(q.x + 2, q.y + -1);
+        if (rc.canSenseLocation(tmp)) {
+            if (tmp.distanceSquaredTo(p) <= 8) {
+                if (shouldUseSecond(tmp, p) != shouldUseSecond(tmp, q)) return false;
+            }
+        }
+        
+        tmp = new MapLocation(q.x + 2, q.y + -2);
+        if (rc.canSenseLocation(tmp)) {
+            if (tmp.distanceSquaredTo(p) <= 8) {
+                if (shouldUseSecond(tmp, p) != shouldUseSecond(tmp, q)) return false;
+            }
+        }
+        
+        
+        
+        tmp = new MapLocation(q.x + 1, q.y + 2);
+        if (rc.canSenseLocation(tmp)) {
+            if (tmp.distanceSquaredTo(p) <= 8) {
+                if (shouldUseSecond(tmp, p) != shouldUseSecond(tmp, q)) return false;
+            }
+        }
+        
+        tmp = new MapLocation(q.x + 1, q.y + 1);
+        if (rc.canSenseLocation(tmp)) {
+            if (tmp.distanceSquaredTo(p) <= 8) {
+                if (shouldUseSecond(tmp, p) != shouldUseSecond(tmp, q)) return false;
+            }
+        }
+        
+        tmp = new MapLocation(q.x + 1, q.y + 0);
+        if (rc.canSenseLocation(tmp)) {
+            if (tmp.distanceSquaredTo(p) <= 8) {
+                if (shouldUseSecond(tmp, p) != shouldUseSecond(tmp, q)) return false;
+            }
+        }
+        
+        tmp = new MapLocation(q.x + 1, q.y + -1);
+        if (rc.canSenseLocation(tmp)) {
+            if (tmp.distanceSquaredTo(p) <= 8) {
+                if (shouldUseSecond(tmp, p) != shouldUseSecond(tmp, q)) return false;
+            }
+        }
+        
+        tmp = new MapLocation(q.x + 1, q.y + -2);
+        if (rc.canSenseLocation(tmp)) {
+            if (tmp.distanceSquaredTo(p) <= 8) {
+                if (shouldUseSecond(tmp, p) != shouldUseSecond(tmp, q)) return false;
+            }
+        }
+        
+        
+        
+        tmp = new MapLocation(q.x + 0, q.y + 2);
+        if (rc.canSenseLocation(tmp)) {
+            if (tmp.distanceSquaredTo(p) <= 8) {
+                if (shouldUseSecond(tmp, p) != shouldUseSecond(tmp, q)) return false;
+            }
+        }
+        
+        tmp = new MapLocation(q.x + 0, q.y + 1);
+        if (rc.canSenseLocation(tmp)) {
+            if (tmp.distanceSquaredTo(p) <= 8) {
+                if (shouldUseSecond(tmp, p) != shouldUseSecond(tmp, q)) return false;
+            }
+        }
+        
+        tmp = new MapLocation(q.x + 0, q.y + 0);
+        if (rc.canSenseLocation(tmp)) {
+            if (tmp.distanceSquaredTo(p) <= 8) {
+                if (shouldUseSecond(tmp, p) != shouldUseSecond(tmp, q)) return false;
+            }
+        }
+        
+        tmp = new MapLocation(q.x + 0, q.y + -1);
+        if (rc.canSenseLocation(tmp)) {
+            if (tmp.distanceSquaredTo(p) <= 8) {
+                if (shouldUseSecond(tmp, p) != shouldUseSecond(tmp, q)) return false;
+            }
+        }
+        
+        tmp = new MapLocation(q.x + 0, q.y + -2);
+        if (rc.canSenseLocation(tmp)) {
+            if (tmp.distanceSquaredTo(p) <= 8) {
+                if (shouldUseSecond(tmp, p) != shouldUseSecond(tmp, q)) return false;
+            }
+        }
+        
+        
+        
+        tmp = new MapLocation(q.x + -1, q.y + 2);
+        if (rc.canSenseLocation(tmp)) {
+            if (tmp.distanceSquaredTo(p) <= 8) {
+                if (shouldUseSecond(tmp, p) != shouldUseSecond(tmp, q)) return false;
+            }
+        }
+        
+        tmp = new MapLocation(q.x + -1, q.y + 1);
+        if (rc.canSenseLocation(tmp)) {
+            if (tmp.distanceSquaredTo(p) <= 8) {
+                if (shouldUseSecond(tmp, p) != shouldUseSecond(tmp, q)) return false;
+            }
+        }
+        
+        tmp = new MapLocation(q.x + -1, q.y + 0);
+        if (rc.canSenseLocation(tmp)) {
+            if (tmp.distanceSquaredTo(p) <= 8) {
+                if (shouldUseSecond(tmp, p) != shouldUseSecond(tmp, q)) return false;
+            }
+        }
+        
+        tmp = new MapLocation(q.x + -1, q.y + -1);
+        if (rc.canSenseLocation(tmp)) {
+            if (tmp.distanceSquaredTo(p) <= 8) {
+                if (shouldUseSecond(tmp, p) != shouldUseSecond(tmp, q)) return false;
+            }
+        }
+        
+        tmp = new MapLocation(q.x + -1, q.y + -2);
+        if (rc.canSenseLocation(tmp)) {
+            if (tmp.distanceSquaredTo(p) <= 8) {
+                if (shouldUseSecond(tmp, p) != shouldUseSecond(tmp, q)) return false;
+            }
+        }
+        
+        
+        
+        tmp = new MapLocation(q.x + -2, q.y + 2);
+        if (rc.canSenseLocation(tmp)) {
+            if (tmp.distanceSquaredTo(p) <= 8) {
+                if (shouldUseSecond(tmp, p) != shouldUseSecond(tmp, q)) return false;
+            }
+        }
+        
+        tmp = new MapLocation(q.x + -2, q.y + 1);
+        if (rc.canSenseLocation(tmp)) {
+            if (tmp.distanceSquaredTo(p) <= 8) {
+                if (shouldUseSecond(tmp, p) != shouldUseSecond(tmp, q)) return false;
+            }
+        }
+        
+        tmp = new MapLocation(q.x + -2, q.y + 0);
+        if (rc.canSenseLocation(tmp)) {
+            if (tmp.distanceSquaredTo(p) <= 8) {
+                if (shouldUseSecond(tmp, p) != shouldUseSecond(tmp, q)) return false;
+            }
+        }
+        
+        tmp = new MapLocation(q.x + -2, q.y + -1);
+        if (rc.canSenseLocation(tmp)) {
+            if (tmp.distanceSquaredTo(p) <= 8) {
+                if (shouldUseSecond(tmp, p) != shouldUseSecond(tmp, q)) return false;
+            }
+        }
+        
+        tmp = new MapLocation(q.x + -2, q.y + -2);
+        if (rc.canSenseLocation(tmp)) {
+            if (tmp.distanceSquaredTo(p) <= 8) {
+                if (shouldUseSecond(tmp, p) != shouldUseSecond(tmp, q)) return false;
+            }
+        }
+        
+        
+        return true;
+    }
+
+    public static boolean enoughToSRP() throws GameActionException {
+        //TODO: if we see a conflict, stop building and mark with a 2 (can add later)
+        int need = 0;
+        for (int i = 3; --i >= -2; ){
+            for (int j = 3; --j >= -2; ){
+                MapLocation tmp = new MapLocation(markedResource.x + i, markedResource.y + j);
+                if (rc.canSenseLocation(tmp)) {
+                    MapInfo mi = rc.senseMapInfo(tmp);
+                    if (canChangeColor(mi)) {
+                        boolean b = shouldUseSecond(tmp, markedResource);
+                        if (mi.getPaint().isAlly()) {
+                            if (b == (mi.getPaint() == PaintType.ALLY_SECONDARY)) {
+                                continue;
+                            }
+                        }
+                        need += 5;
+                    }
+                }
+            }
+        }
+        return (rc.getPaint() - need >= 10);
+    }
+
+    public static void moneyPattern() throws GameActionException {
+        if (markedResource != null) return;
+        if (!(rc.getNumberTowers() > 2 || rc.getRoundNum() > 100)) return;
+
+        if (chunkGoal != null) {
+            if (myloc.equals(chunkGoal)) chunkGoal = null;
+            else Pathing.pathTo(chunkGoal);
+        }
+
+        if (Globals.enemies.length > 0) return;
+
+        //this just checks that nothing is like directly in the way
+        for (int i = 3; --i >= -2; ){
+            for (int j = 3; --j >= -2; ){
+                MapLocation tmp = new MapLocation(myloc.x + i, myloc.y + j);
+                if (rc.canSenseLocation(tmp)) {
+                    MapInfo mi = rc.senseMapInfo(tmp);
+                    if (!mi.isPassable()) {
+                        return;
+                    }
+                    if (!mi.getPaint().isAlly() && mi.getPaint() != PaintType.EMPTY) return;
+                    if (mi.isResourcePatternCenter()) return;
+                    RobotInfo r = rc.senseRobotAtLocation(tmp);
+                    if (r != null && Globals.isTower(r.getType())) {
+                        return;
+                    }
+                }
+                else {
+                    return;
+                }
+            }
+        }
+
+        // ok there is probably better way to do this with bitmasks or something but ill just do this for now...
+        for (int i = near.length; --i >= 0; ) {
+            if (near[i].getMark() == PaintType.ALLY_PRIMARY) {
+                if (!isOk(near[i].getMapLocation(), myloc)) return;
+            }
+        }
+
+        if (rc.canMark(myloc)) {
+            rc.mark(myloc, false);
+            markedResource = myloc;
+        }
+    }
+
+    public static boolean okSRP(MapLocation loc) throws GameActionException {
+        MapLocation tmp;
+        
+        
+        tmp = new MapLocation(loc.x + 2, loc.y + 2);
+        if (!Globals.onMap(tmp)) return false;
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (!mi.isPassable()) return false;
+            if (!mi.getPaint().isAlly() && mi.getPaint() != PaintType.EMPTY) return false;
+        }
+        
+        tmp = new MapLocation(loc.x + 2, loc.y + 1);
+        if (!Globals.onMap(tmp)) return false;
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (!mi.isPassable()) return false;
+            if (!mi.getPaint().isAlly() && mi.getPaint() != PaintType.EMPTY) return false;
+        }
+        
+        tmp = new MapLocation(loc.x + 2, loc.y + 0);
+        if (!Globals.onMap(tmp)) return false;
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (!mi.isPassable()) return false;
+            if (!mi.getPaint().isAlly() && mi.getPaint() != PaintType.EMPTY) return false;
+        }
+        
+        tmp = new MapLocation(loc.x + 2, loc.y + -1);
+        if (!Globals.onMap(tmp)) return false;
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (!mi.isPassable()) return false;
+            if (!mi.getPaint().isAlly() && mi.getPaint() != PaintType.EMPTY) return false;
+        }
+        
+        tmp = new MapLocation(loc.x + 2, loc.y + -2);
+        if (!Globals.onMap(tmp)) return false;
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (!mi.isPassable()) return false;
+            if (!mi.getPaint().isAlly() && mi.getPaint() != PaintType.EMPTY) return false;
+        }
+        
+        
+        
+        tmp = new MapLocation(loc.x + 1, loc.y + 2);
+        if (!Globals.onMap(tmp)) return false;
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (!mi.isPassable()) return false;
+            if (!mi.getPaint().isAlly() && mi.getPaint() != PaintType.EMPTY) return false;
+        }
+        
+        tmp = new MapLocation(loc.x + 1, loc.y + 1);
+        if (!Globals.onMap(tmp)) return false;
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (!mi.isPassable()) return false;
+            if (!mi.getPaint().isAlly() && mi.getPaint() != PaintType.EMPTY) return false;
+        }
+        
+        tmp = new MapLocation(loc.x + 1, loc.y + 0);
+        if (!Globals.onMap(tmp)) return false;
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (!mi.isPassable()) return false;
+            if (!mi.getPaint().isAlly() && mi.getPaint() != PaintType.EMPTY) return false;
+        }
+        
+        tmp = new MapLocation(loc.x + 1, loc.y + -1);
+        if (!Globals.onMap(tmp)) return false;
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (!mi.isPassable()) return false;
+            if (!mi.getPaint().isAlly() && mi.getPaint() != PaintType.EMPTY) return false;
+        }
+        
+        tmp = new MapLocation(loc.x + 1, loc.y + -2);
+        if (!Globals.onMap(tmp)) return false;
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (!mi.isPassable()) return false;
+            if (!mi.getPaint().isAlly() && mi.getPaint() != PaintType.EMPTY) return false;
+        }
+        
+        
+        
+        tmp = new MapLocation(loc.x + 0, loc.y + 2);
+        if (!Globals.onMap(tmp)) return false;
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (!mi.isPassable()) return false;
+            if (!mi.getPaint().isAlly() && mi.getPaint() != PaintType.EMPTY) return false;
+        }
+        
+        tmp = new MapLocation(loc.x + 0, loc.y + 1);
+        if (!Globals.onMap(tmp)) return false;
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (!mi.isPassable()) return false;
+            if (!mi.getPaint().isAlly() && mi.getPaint() != PaintType.EMPTY) return false;
+        }
+        
+        tmp = new MapLocation(loc.x + 0, loc.y + 0);
+        if (!Globals.onMap(tmp)) return false;
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (!mi.isPassable()) return false;
+            if (!mi.getPaint().isAlly() && mi.getPaint() != PaintType.EMPTY) return false;
+        }
+        
+        tmp = new MapLocation(loc.x + 0, loc.y + -1);
+        if (!Globals.onMap(tmp)) return false;
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (!mi.isPassable()) return false;
+            if (!mi.getPaint().isAlly() && mi.getPaint() != PaintType.EMPTY) return false;
+        }
+        
+        tmp = new MapLocation(loc.x + 0, loc.y + -2);
+        if (!Globals.onMap(tmp)) return false;
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (!mi.isPassable()) return false;
+            if (!mi.getPaint().isAlly() && mi.getPaint() != PaintType.EMPTY) return false;
+        }
+        
+        
+        
+        tmp = new MapLocation(loc.x + -1, loc.y + 2);
+        if (!Globals.onMap(tmp)) return false;
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (!mi.isPassable()) return false;
+            if (!mi.getPaint().isAlly() && mi.getPaint() != PaintType.EMPTY) return false;
+        }
+        
+        tmp = new MapLocation(loc.x + -1, loc.y + 1);
+        if (!Globals.onMap(tmp)) return false;
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (!mi.isPassable()) return false;
+            if (!mi.getPaint().isAlly() && mi.getPaint() != PaintType.EMPTY) return false;
+        }
+        
+        tmp = new MapLocation(loc.x + -1, loc.y + 0);
+        if (!Globals.onMap(tmp)) return false;
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (!mi.isPassable()) return false;
+            if (!mi.getPaint().isAlly() && mi.getPaint() != PaintType.EMPTY) return false;
+        }
+        
+        tmp = new MapLocation(loc.x + -1, loc.y + -1);
+        if (!Globals.onMap(tmp)) return false;
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (!mi.isPassable()) return false;
+            if (!mi.getPaint().isAlly() && mi.getPaint() != PaintType.EMPTY) return false;
+        }
+        
+        tmp = new MapLocation(loc.x + -1, loc.y + -2);
+        if (!Globals.onMap(tmp)) return false;
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (!mi.isPassable()) return false;
+            if (!mi.getPaint().isAlly() && mi.getPaint() != PaintType.EMPTY) return false;
+        }
+        
+        
+        
+        tmp = new MapLocation(loc.x + -2, loc.y + 2);
+        if (!Globals.onMap(tmp)) return false;
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (!mi.isPassable()) return false;
+            if (!mi.getPaint().isAlly() && mi.getPaint() != PaintType.EMPTY) return false;
+        }
+        
+        tmp = new MapLocation(loc.x + -2, loc.y + 1);
+        if (!Globals.onMap(tmp)) return false;
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (!mi.isPassable()) return false;
+            if (!mi.getPaint().isAlly() && mi.getPaint() != PaintType.EMPTY) return false;
+        }
+        
+        tmp = new MapLocation(loc.x + -2, loc.y + 0);
+        if (!Globals.onMap(tmp)) return false;
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (!mi.isPassable()) return false;
+            if (!mi.getPaint().isAlly() && mi.getPaint() != PaintType.EMPTY) return false;
+        }
+        
+        tmp = new MapLocation(loc.x + -2, loc.y + -1);
+        if (!Globals.onMap(tmp)) return false;
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (!mi.isPassable()) return false;
+            if (!mi.getPaint().isAlly() && mi.getPaint() != PaintType.EMPTY) return false;
+        }
+        
+        tmp = new MapLocation(loc.x + -2, loc.y + -2);
+        if (!Globals.onMap(tmp)) return false;
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (!mi.isPassable()) return false;
+            if (!mi.getPaint().isAlly() && mi.getPaint() != PaintType.EMPTY) return false;
+        }
+        
+        
+        return true;
+    }
+
+    public static MapLocation findNext(MapLocation m) throws GameActionException {
+        int st = Globals.rng.nextInt(4);
+        MapLocation tmp;
+        MapInfo mi;
+        
+        tmp = new MapLocation(m.x + dx[(st + 0) % 4], m.y + dy[(st + 0) % 4]);
+        mi = rc.senseMapInfo(tmp);
+        if (okSRP(tmp) && mi.getMark() != PaintType.ALLY_PRIMARY) {
+            return tmp;
+        }
+        
+        tmp = new MapLocation(m.x + dx[(st + 1) % 4], m.y + dy[(st + 1) % 4]);
+        mi = rc.senseMapInfo(tmp);
+        if (okSRP(tmp) && mi.getMark() != PaintType.ALLY_PRIMARY) {
+            return tmp;
+        }
+        
+        tmp = new MapLocation(m.x + dx[(st + 2) % 4], m.y + dy[(st + 2) % 4]);
+        mi = rc.senseMapInfo(tmp);
+        if (okSRP(tmp) && mi.getMark() != PaintType.ALLY_PRIMARY) {
+            return tmp;
+        }
+        
+        tmp = new MapLocation(m.x + dx[(st + 3) % 4], m.y + dy[(st + 3) % 4]);
+        mi = rc.senseMapInfo(tmp);
+        if (okSRP(tmp) && mi.getMark() != PaintType.ALLY_PRIMARY) {
+            return tmp;
+        }
+        
+        return null;
+    }
+
+    public static void makeResourcePatch() throws GameActionException {
+        //TODO: if we see a conflict, stop building and mark with a 2 (can add later)
+        if (!rc.getLocation().equals(markedResource)) Pathing.pathTo(markedResource);
+        moved = true;
+        MapLocation goal = null;
+        int bestDist = 1000000000;
+        boolean secondCol = false;
+        for (int i = 3; --i >= -2; ){
+            for (int j = 3; --j >= -2; ){
+                MapLocation tmp = new MapLocation(markedResource.x + i, markedResource.y + j);
+                if (rc.canSenseLocation(tmp)) {
+                    MapInfo mi = rc.senseMapInfo(tmp);
+                    if (canChangeColor(mi)) {
+                        boolean b = shouldUseSecond(tmp, markedResource);
+                        if (mi.getPaint().isAlly()) {
+                            if (b == (mi.getPaint() == PaintType.ALLY_SECONDARY)) {
+                                continue;
+                            }
+                        }
+                        int d = rc.getLocation().distanceSquaredTo(tmp);
+                        if (d < bestDist) {
+                            bestDist = d;
+                            goal = tmp;
+                            secondCol = b;
+                        }
+                    }
+                }
+            }
+        }
+        if (goal != null) {
+            if (rc.canAttack(goal)) {
+                rc.attack(goal, secondCol);
+            }
+            if (rc.canCompleteResourcePattern(markedResource)) {
+                rc.completeResourcePattern(markedResource);
+                markedResource = null;
+                chunkGoal = findNext(myloc);
+            }
+            MapInfo mi = rc.senseMapInfo(myloc);
+            if (mi.isResourcePatternCenter()) {
+                markedResource = null;
+                chunkGoal = findNext(myloc);
+            }
+        }
+        else {
+            if (rc.canCompleteResourcePattern(markedResource)) {
+                rc.completeResourcePattern(markedResource);
+                chunkGoal = findNext(myloc);
+            }
+            markedResource = null;
+        }
+    }
+
+    public static void run() throws GameActionException {
+        initTurn();
+        runTurn();
+        postTurn();
+    }
+
+    public static void initTurn() throws GameActionException {
+        near = rc.senseNearbyMapInfos();
+        myloc = rc.getLocation();
+        myPaint = rc.getPaint();
+        moved = false;
+
+        RefuelManager.setHome();
+        boolean lowHealth = (myPaint <= (paintCapacity >> 2));
+        if (lowHealth != shouldGoHome) {
+            shouldGoHome = lowHealth;
+            reallyGoing = false;
+            if (buildTower != null && shouldGoHome) returnLoc = buildTower;
+            RefuelManager.reset();
+        }
+
+        if (!harrasser && !wasHarrasser) {
+            harrasser = isHarasser();
+            if (harrasser) wasHarrasser = true;
+        }
+    }
+
+    public static boolean isHarasser() throws GameActionException {
+        if (Math.max(rc.getMapHeight(), rc.getMapWidth()) > 40) return false;
+        if (rc.getRoundNum() < 50) {
+            if (rc.getRoundNum() > 2) return false;
+            if (RefuelManager.home == null) return false;
+            if (!rc.canSenseLocation(RefuelManager.home)) return false;
+            RobotInfo r = rc.senseRobotAtLocation(RefuelManager.home);
+            if (r == null || r.getType() != UnitType.LEVEL_TWO_PAINT_TOWER) return false;
+            return true;
+        }
+        else return false;
+    }
+
+    public static boolean getGoodColor(MapLocation m) throws GameActionException {
+        MapLocation tmp;
+        
+        
+        tmp = new MapLocation(m.x + 2, m.y + 2);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (mi.getMark() == PaintType.ALLY_PRIMARY) {
+                return Soldier.shouldUseSecond(m, tmp);
+            }
+        }
+        
+        tmp = new MapLocation(m.x + 2, m.y + 1);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (mi.getMark() == PaintType.ALLY_PRIMARY) {
+                return Soldier.shouldUseSecond(m, tmp);
+            }
+        }
+        
+        tmp = new MapLocation(m.x + 2, m.y + 0);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (mi.getMark() == PaintType.ALLY_PRIMARY) {
+                return Soldier.shouldUseSecond(m, tmp);
+            }
+        }
+        
+        tmp = new MapLocation(m.x + 2, m.y + -1);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (mi.getMark() == PaintType.ALLY_PRIMARY) {
+                return Soldier.shouldUseSecond(m, tmp);
+            }
+        }
+        
+        tmp = new MapLocation(m.x + 2, m.y + -2);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (mi.getMark() == PaintType.ALLY_PRIMARY) {
+                return Soldier.shouldUseSecond(m, tmp);
+            }
+        }
+        
+        
+        
+        tmp = new MapLocation(m.x + 1, m.y + 2);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (mi.getMark() == PaintType.ALLY_PRIMARY) {
+                return Soldier.shouldUseSecond(m, tmp);
+            }
+        }
+        
+        tmp = new MapLocation(m.x + 1, m.y + 1);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (mi.getMark() == PaintType.ALLY_PRIMARY) {
+                return Soldier.shouldUseSecond(m, tmp);
+            }
+        }
+        
+        tmp = new MapLocation(m.x + 1, m.y + 0);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (mi.getMark() == PaintType.ALLY_PRIMARY) {
+                return Soldier.shouldUseSecond(m, tmp);
+            }
+        }
+        
+        tmp = new MapLocation(m.x + 1, m.y + -1);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (mi.getMark() == PaintType.ALLY_PRIMARY) {
+                return Soldier.shouldUseSecond(m, tmp);
+            }
+        }
+        
+        tmp = new MapLocation(m.x + 1, m.y + -2);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (mi.getMark() == PaintType.ALLY_PRIMARY) {
+                return Soldier.shouldUseSecond(m, tmp);
+            }
+        }
+        
+        
+        
+        tmp = new MapLocation(m.x + 0, m.y + 2);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (mi.getMark() == PaintType.ALLY_PRIMARY) {
+                return Soldier.shouldUseSecond(m, tmp);
+            }
+        }
+        
+        tmp = new MapLocation(m.x + 0, m.y + 1);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (mi.getMark() == PaintType.ALLY_PRIMARY) {
+                return Soldier.shouldUseSecond(m, tmp);
+            }
+        }
+        
+        tmp = new MapLocation(m.x + 0, m.y + 0);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (mi.getMark() == PaintType.ALLY_PRIMARY) {
+                return Soldier.shouldUseSecond(m, tmp);
+            }
+        }
+        
+        tmp = new MapLocation(m.x + 0, m.y + -1);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (mi.getMark() == PaintType.ALLY_PRIMARY) {
+                return Soldier.shouldUseSecond(m, tmp);
+            }
+        }
+        
+        tmp = new MapLocation(m.x + 0, m.y + -2);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (mi.getMark() == PaintType.ALLY_PRIMARY) {
+                return Soldier.shouldUseSecond(m, tmp);
+            }
+        }
+        
+        
+        
+        tmp = new MapLocation(m.x + -1, m.y + 2);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (mi.getMark() == PaintType.ALLY_PRIMARY) {
+                return Soldier.shouldUseSecond(m, tmp);
+            }
+        }
+        
+        tmp = new MapLocation(m.x + -1, m.y + 1);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (mi.getMark() == PaintType.ALLY_PRIMARY) {
+                return Soldier.shouldUseSecond(m, tmp);
+            }
+        }
+        
+        tmp = new MapLocation(m.x + -1, m.y + 0);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (mi.getMark() == PaintType.ALLY_PRIMARY) {
+                return Soldier.shouldUseSecond(m, tmp);
+            }
+        }
+        
+        tmp = new MapLocation(m.x + -1, m.y + -1);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (mi.getMark() == PaintType.ALLY_PRIMARY) {
+                return Soldier.shouldUseSecond(m, tmp);
+            }
+        }
+        
+        tmp = new MapLocation(m.x + -1, m.y + -2);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (mi.getMark() == PaintType.ALLY_PRIMARY) {
+                return Soldier.shouldUseSecond(m, tmp);
+            }
+        }
+        
+        
+        
+        tmp = new MapLocation(m.x + -2, m.y + 2);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (mi.getMark() == PaintType.ALLY_PRIMARY) {
+                return Soldier.shouldUseSecond(m, tmp);
+            }
+        }
+        
+        tmp = new MapLocation(m.x + -2, m.y + 1);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (mi.getMark() == PaintType.ALLY_PRIMARY) {
+                return Soldier.shouldUseSecond(m, tmp);
+            }
+        }
+        
+        tmp = new MapLocation(m.x + -2, m.y + 0);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (mi.getMark() == PaintType.ALLY_PRIMARY) {
+                return Soldier.shouldUseSecond(m, tmp);
+            }
+        }
+        
+        tmp = new MapLocation(m.x + -2, m.y + -1);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (mi.getMark() == PaintType.ALLY_PRIMARY) {
+                return Soldier.shouldUseSecond(m, tmp);
+            }
+        }
+        
+        tmp = new MapLocation(m.x + -2, m.y + -2);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            if (mi.getMark() == PaintType.ALLY_PRIMARY) {
+                return Soldier.shouldUseSecond(m, tmp);
+            }
+        }
+        
+        
+        return false;
+    }
+
+    public static boolean checkNearby(MapLocation loc) throws GameActionException {
+        MapLocation tmp;
+        
+        
+        
+        tmp = new MapLocation(loc.x + 2, loc.y + 2);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            boolean b = shouldUseSecond(tmp, loc);
+            if (mi.getPaint() == PaintType.EMPTY || (mi.getPaint().isAlly() && b != (mi.getPaint() == PaintType.ALLY_SECONDARY))) {
+                if (rc.canAttack(tmp)) {
+                    rc.attack(tmp, b);
+                    return true;
+                }
+            }
+        }
+        
+        
+        
+        tmp = new MapLocation(loc.x + 2, loc.y + 1);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            boolean b = shouldUseSecond(tmp, loc);
+            if (mi.getPaint() == PaintType.EMPTY || (mi.getPaint().isAlly() && b != (mi.getPaint() == PaintType.ALLY_SECONDARY))) {
+                if (rc.canAttack(tmp)) {
+                    rc.attack(tmp, b);
+                    return true;
+                }
+            }
+        }
+        
+        
+        
+        tmp = new MapLocation(loc.x + 2, loc.y + 0);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            boolean b = shouldUseSecond(tmp, loc);
+            if (mi.getPaint() == PaintType.EMPTY || (mi.getPaint().isAlly() && b != (mi.getPaint() == PaintType.ALLY_SECONDARY))) {
+                if (rc.canAttack(tmp)) {
+                    rc.attack(tmp, b);
+                    return true;
+                }
+            }
+        }
+        
+        
+        
+        tmp = new MapLocation(loc.x + 2, loc.y + -1);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            boolean b = shouldUseSecond(tmp, loc);
+            if (mi.getPaint() == PaintType.EMPTY || (mi.getPaint().isAlly() && b != (mi.getPaint() == PaintType.ALLY_SECONDARY))) {
+                if (rc.canAttack(tmp)) {
+                    rc.attack(tmp, b);
+                    return true;
+                }
+            }
+        }
+        
+        
+        
+        tmp = new MapLocation(loc.x + 2, loc.y + -2);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            boolean b = shouldUseSecond(tmp, loc);
+            if (mi.getPaint() == PaintType.EMPTY || (mi.getPaint().isAlly() && b != (mi.getPaint() == PaintType.ALLY_SECONDARY))) {
+                if (rc.canAttack(tmp)) {
+                    rc.attack(tmp, b);
+                    return true;
+                }
+            }
+        }
+        
+        
+        
+        
+        
+        tmp = new MapLocation(loc.x + 1, loc.y + 2);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            boolean b = shouldUseSecond(tmp, loc);
+            if (mi.getPaint() == PaintType.EMPTY || (mi.getPaint().isAlly() && b != (mi.getPaint() == PaintType.ALLY_SECONDARY))) {
+                if (rc.canAttack(tmp)) {
+                    rc.attack(tmp, b);
+                    return true;
+                }
+            }
+        }
+        
+        
+        
+        tmp = new MapLocation(loc.x + 1, loc.y + 1);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            boolean b = shouldUseSecond(tmp, loc);
+            if (mi.getPaint() == PaintType.EMPTY || (mi.getPaint().isAlly() && b != (mi.getPaint() == PaintType.ALLY_SECONDARY))) {
+                if (rc.canAttack(tmp)) {
+                    rc.attack(tmp, b);
+                    return true;
+                }
+            }
+        }
+        
+        
+        
+        tmp = new MapLocation(loc.x + 1, loc.y + 0);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            boolean b = shouldUseSecond(tmp, loc);
+            if (mi.getPaint() == PaintType.EMPTY || (mi.getPaint().isAlly() && b != (mi.getPaint() == PaintType.ALLY_SECONDARY))) {
+                if (rc.canAttack(tmp)) {
+                    rc.attack(tmp, b);
+                    return true;
+                }
+            }
+        }
+        
+        
+        
+        tmp = new MapLocation(loc.x + 1, loc.y + -1);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            boolean b = shouldUseSecond(tmp, loc);
+            if (mi.getPaint() == PaintType.EMPTY || (mi.getPaint().isAlly() && b != (mi.getPaint() == PaintType.ALLY_SECONDARY))) {
+                if (rc.canAttack(tmp)) {
+                    rc.attack(tmp, b);
+                    return true;
+                }
+            }
+        }
+        
+        
+        
+        tmp = new MapLocation(loc.x + 1, loc.y + -2);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            boolean b = shouldUseSecond(tmp, loc);
+            if (mi.getPaint() == PaintType.EMPTY || (mi.getPaint().isAlly() && b != (mi.getPaint() == PaintType.ALLY_SECONDARY))) {
+                if (rc.canAttack(tmp)) {
+                    rc.attack(tmp, b);
+                    return true;
+                }
+            }
+        }
+        
+        
+        
+        
+        
+        tmp = new MapLocation(loc.x + 0, loc.y + 2);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            boolean b = shouldUseSecond(tmp, loc);
+            if (mi.getPaint() == PaintType.EMPTY || (mi.getPaint().isAlly() && b != (mi.getPaint() == PaintType.ALLY_SECONDARY))) {
+                if (rc.canAttack(tmp)) {
+                    rc.attack(tmp, b);
+                    return true;
+                }
+            }
+        }
+        
+        
+        
+        tmp = new MapLocation(loc.x + 0, loc.y + 1);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            boolean b = shouldUseSecond(tmp, loc);
+            if (mi.getPaint() == PaintType.EMPTY || (mi.getPaint().isAlly() && b != (mi.getPaint() == PaintType.ALLY_SECONDARY))) {
+                if (rc.canAttack(tmp)) {
+                    rc.attack(tmp, b);
+                    return true;
+                }
+            }
+        }
+        
+        
+        
+        
+        
+        tmp = new MapLocation(loc.x + 0, loc.y + -1);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            boolean b = shouldUseSecond(tmp, loc);
+            if (mi.getPaint() == PaintType.EMPTY || (mi.getPaint().isAlly() && b != (mi.getPaint() == PaintType.ALLY_SECONDARY))) {
+                if (rc.canAttack(tmp)) {
+                    rc.attack(tmp, b);
+                    return true;
+                }
+            }
+        }
+        
+        
+        
+        tmp = new MapLocation(loc.x + 0, loc.y + -2);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            boolean b = shouldUseSecond(tmp, loc);
+            if (mi.getPaint() == PaintType.EMPTY || (mi.getPaint().isAlly() && b != (mi.getPaint() == PaintType.ALLY_SECONDARY))) {
+                if (rc.canAttack(tmp)) {
+                    rc.attack(tmp, b);
+                    return true;
+                }
+            }
+        }
+        
+        
+        
+        
+        
+        tmp = new MapLocation(loc.x + -1, loc.y + 2);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            boolean b = shouldUseSecond(tmp, loc);
+            if (mi.getPaint() == PaintType.EMPTY || (mi.getPaint().isAlly() && b != (mi.getPaint() == PaintType.ALLY_SECONDARY))) {
+                if (rc.canAttack(tmp)) {
+                    rc.attack(tmp, b);
+                    return true;
+                }
+            }
+        }
+        
+        
+        
+        tmp = new MapLocation(loc.x + -1, loc.y + 1);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            boolean b = shouldUseSecond(tmp, loc);
+            if (mi.getPaint() == PaintType.EMPTY || (mi.getPaint().isAlly() && b != (mi.getPaint() == PaintType.ALLY_SECONDARY))) {
+                if (rc.canAttack(tmp)) {
+                    rc.attack(tmp, b);
+                    return true;
+                }
+            }
+        }
+        
+        
+        
+        tmp = new MapLocation(loc.x + -1, loc.y + 0);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            boolean b = shouldUseSecond(tmp, loc);
+            if (mi.getPaint() == PaintType.EMPTY || (mi.getPaint().isAlly() && b != (mi.getPaint() == PaintType.ALLY_SECONDARY))) {
+                if (rc.canAttack(tmp)) {
+                    rc.attack(tmp, b);
+                    return true;
+                }
+            }
+        }
+        
+        
+        
+        tmp = new MapLocation(loc.x + -1, loc.y + -1);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            boolean b = shouldUseSecond(tmp, loc);
+            if (mi.getPaint() == PaintType.EMPTY || (mi.getPaint().isAlly() && b != (mi.getPaint() == PaintType.ALLY_SECONDARY))) {
+                if (rc.canAttack(tmp)) {
+                    rc.attack(tmp, b);
+                    return true;
+                }
+            }
+        }
+        
+        
+        
+        tmp = new MapLocation(loc.x + -1, loc.y + -2);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            boolean b = shouldUseSecond(tmp, loc);
+            if (mi.getPaint() == PaintType.EMPTY || (mi.getPaint().isAlly() && b != (mi.getPaint() == PaintType.ALLY_SECONDARY))) {
+                if (rc.canAttack(tmp)) {
+                    rc.attack(tmp, b);
+                    return true;
+                }
+            }
+        }
+        
+        
+        
+        
+        
+        tmp = new MapLocation(loc.x + -2, loc.y + 2);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            boolean b = shouldUseSecond(tmp, loc);
+            if (mi.getPaint() == PaintType.EMPTY || (mi.getPaint().isAlly() && b != (mi.getPaint() == PaintType.ALLY_SECONDARY))) {
+                if (rc.canAttack(tmp)) {
+                    rc.attack(tmp, b);
+                    return true;
+                }
+            }
+        }
+        
+        
+        
+        tmp = new MapLocation(loc.x + -2, loc.y + 1);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            boolean b = shouldUseSecond(tmp, loc);
+            if (mi.getPaint() == PaintType.EMPTY || (mi.getPaint().isAlly() && b != (mi.getPaint() == PaintType.ALLY_SECONDARY))) {
+                if (rc.canAttack(tmp)) {
+                    rc.attack(tmp, b);
+                    return true;
+                }
+            }
+        }
+        
+        
+        
+        tmp = new MapLocation(loc.x + -2, loc.y + 0);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            boolean b = shouldUseSecond(tmp, loc);
+            if (mi.getPaint() == PaintType.EMPTY || (mi.getPaint().isAlly() && b != (mi.getPaint() == PaintType.ALLY_SECONDARY))) {
+                if (rc.canAttack(tmp)) {
+                    rc.attack(tmp, b);
+                    return true;
+                }
+            }
+        }
+        
+        
+        
+        tmp = new MapLocation(loc.x + -2, loc.y + -1);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            boolean b = shouldUseSecond(tmp, loc);
+            if (mi.getPaint() == PaintType.EMPTY || (mi.getPaint().isAlly() && b != (mi.getPaint() == PaintType.ALLY_SECONDARY))) {
+                if (rc.canAttack(tmp)) {
+                    rc.attack(tmp, b);
+                    return true;
+                }
+            }
+        }
+        
+        
+        
+        tmp = new MapLocation(loc.x + -2, loc.y + -2);
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            boolean b = shouldUseSecond(tmp, loc);
+            if (mi.getPaint() == PaintType.EMPTY || (mi.getPaint().isAlly() && b != (mi.getPaint() == PaintType.ALLY_SECONDARY))) {
+                if (rc.canAttack(tmp)) {
+                    rc.attack(tmp, b);
+                    return true;
+                }
+            }
+        }
+        
+        
+        
+        return false;
+    }
+
+    public static void helpPattern(MapInfo[] near) throws GameActionException {
+        for (int i = near.length; --i >= 0;) {
+            if (near[i].getMark() == PaintType.ALLY_PRIMARY) {
+                if (checkNearby(near[i].getMapLocation())) return;
+            }
+        }
+    }
+
+    public static void goHarrass() throws GameActionException {
+        int sym = SymmetryChecker.HSYM + SymmetryChecker.RSYM + SymmetryChecker.VSYM;
+        if (sym > 1 && !seenCenter) {
+            if (rc.getLocation().distanceSquaredTo(center) <= 9) seenCenter = true;
+            else {
+                Pathing.pathTo(center);
+                return;
+            }
+        }
+
+        int closest = 1000000000;
+        MapLocation best = null;
+        MapLocation target;
+        MapLocation ruin = RefuelManager.firstHome;
+        if (SymmetryChecker.RSYM != 0 && !reachedR) {
+            target = new MapLocation(rc.getMapWidth() - ruin.x - 1, rc.getMapHeight() - ruin.y - 1);
+            if (myloc.distanceSquaredTo(target) <= 9) {
+                reachedR = true;
+            }
+            else {
+                int d = rc.getLocation().distanceSquaredTo(target);
+                if (d < closest) {
+                    best = target;
+                    closest = d;
+                }
+            }
+        }
+        if (SymmetryChecker.HSYM != 0 && !reachedH) {
+            target = new MapLocation(ruin.x, rc.getMapHeight() - ruin.y - 1);
+            if (myloc.distanceSquaredTo(target) <= 9) {
+                reachedH = true;
+            }
+            else {
+                int d = rc.getLocation().distanceSquaredTo(target);
+                if (d < closest) {
+                    best = target;
+                    closest = d;
+                }
+            }
+        }
+        if (SymmetryChecker.VSYM != 0 && !reachedV) {
+            target = new MapLocation(rc.getMapWidth() - ruin.x - 1, ruin.y);
+            if (myloc.distanceSquaredTo(target) <= 9) {
+                reachedV = true;
+            }
+            else {
+                int d = rc.getLocation().distanceSquaredTo(target);
+                if (d < closest) {
+                    best = target;
+                    closest = d;
+                }
+            }
+        }
+        if (best != null) Pathing.pathTo(best);
+        else harrasser = false;
+    }
+    
+    public static void runTurn() throws GameActionException {
+        if (Attack.shouldSoldierMicro()) {
+            rc.setIndicatorString("Attacking");
+            Attack.soldierAttackMicro();
+            return;
+        }
+
+        buildTower = TowerBuild.getRuin(near);
+        if (TowerBuild.leaveMark != null) {
+            if (rc.canAttack(TowerBuild.leaveMark)) {
+                rc.attack(TowerBuild.leaveMark);
+            }
+        }
+
+        if (rc.getNumberTowers() < 25 && rc.getPaint() <= 50 && !reallyGoing) {
+            if (buildTower != null && TowerBuild.enoughPaint(buildTower)) {
+                TowerBuild.makeTower(buildTower);
+                return;
+            }
+            else reallyGoing = true;
+        }
+
+        if (markedResource != null && !reallyGoing && rc.getPaint() <= 50) {
+            if (enoughToSRP() && !reallyGoing){
+                makeResourcePatch();
+                return;
+            }
+            else reallyGoing = true;
+        }
+
+        if (TowerBuild.finishedTower != null){
+            TowerBuild.removePattern();
+            return;
+        }
+
+        if (shouldGoHome) {
+            rc.setIndicatorString("Refueling");
+            RefuelManager.refuel();
+            return;
+        } 
+
+        else if (rc.getNumberTowers() < 25 && markedResource == null) {
+            if (buildTower != null) {
+                TowerBuild.makeTower(buildTower);
+                return;
+            }
+        }
+        else if (harrasser) {
+            goHarrass();
+            return;
+        }  
+        if (returnLoc != null) {
+            if (myloc.distanceSquaredTo(returnLoc) <= 5) {
+                returnLoc = null;
+            }
+            else {
+                Pathing.pathTo(returnLoc);
+            }
+        }
+
+        moneyPattern();
+        if (markedResource != null) {
+            rc.setIndicatorString("Patching Resource");
+            makeResourcePatch();
+            return;
+        }
+
+        helpPattern(near);
+
+        if (moved) return;
+
+        //rc.setIndicatorString("Exploring");
+        Explore.explore(near);
+    }
+
+    public static void postTurn() throws GameActionException {
+
+        // Lay paint where I am first.
+        myloc = rc.getLocation();
+        if (canChangeColor(myloc) && rc.canAttack(myloc) && rc.getPaint() >= 50 && okToTile(myloc) && !harrasser){
+            rc.attack(myloc, getGoodColor(myloc));
+        }
+
+        if (buildTower != null) {
+            if (rc.canCompleteTowerPattern(UnitType.LEVEL_ONE_PAINT_TOWER, buildTower)) {
+                rc.completeTowerPattern(UnitType.LEVEL_ONE_PAINT_TOWER, buildTower);
+                TowerBuild.finishedTower = buildTower;
+                TowerBuild.removePattern();
+            }
+            if (rc.canCompleteTowerPattern(UnitType.LEVEL_ONE_MONEY_TOWER, buildTower)) {
+                rc.completeTowerPattern(UnitType.LEVEL_ONE_MONEY_TOWER, buildTower);
+                TowerBuild.finishedTower = buildTower;
+                TowerBuild.removePattern();
+            }
+        }
+        checkMoneyPatterns();
+    }
+}
