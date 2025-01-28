@@ -15,10 +15,26 @@ public class TowerBuild {
 
     public static void init(RobotController rc) throws GameActionException {
         TowerBuild.rc = rc;
-        last = new int[rc.getMapWidth()][rc.getMapHeight()];
+        last = new int[rc.getMapWidth()][];
         moneyTower = rc.getTowerPattern(UnitType.LEVEL_ONE_MONEY_TOWER);
         paintTower = rc.getTowerPattern(UnitType.LEVEL_ONE_PAINT_TOWER);
         defenseTower = rc.getTowerPattern(UnitType.LEVEL_ONE_DEFENSE_TOWER);
+    }
+
+    public static void setLast(int x, int y, int val) {
+        if (last[x] == null) {
+            last[x] = new int[rc.getMapHeight()];
+        }
+        last[x][y] = val;
+    }
+
+    public static int getLast(int x, int y) {
+        if (last[x] == null) {
+            last[x] = new int[rc.getMapHeight()];
+            return 0;
+        } else {
+            return last[x][y];
+        }
     }
 
     public static void removePattern() throws GameActionException {
@@ -66,7 +82,7 @@ public class TowerBuild {
                 int d = m.distanceSquaredTo(rc.getLocation());
                 RobotInfo r = rc.senseRobotAtLocation(m);
                 if (r == null) {
-                    if (d < closest && last[m.x][m.y] < rc.getRoundNum() && ((rc.getType() == UnitType.MOPPER && seeTaintedRuin(m)) || (rc.getType() == UnitType.SOLDIER && seeIncompleteRuin(m)))) {
+                    if (d < closest && getLast(m.x, m.y) < rc.getRoundNum() && ((rc.getType() == UnitType.MOPPER && seeTaintedRuin(m)) || (rc.getType() == UnitType.SOLDIER && seeIncompleteRuin(m)))) {
                         closest = d;
                         best = m;
                     }
@@ -81,7 +97,7 @@ public class TowerBuild {
                 }
             }
         }
-        if (prevRuin != null && rc.canSenseLocation(prevRuin) && last[prevRuin.x][prevRuin.y] < rc.getRoundNum() && ((rc.getType() == UnitType.MOPPER && (seeTaintedRuin(prevRuin)) || (rc.getType() == UnitType.SOLDIER && seeIncompleteRuin(prevRuin))))){
+        if (prevRuin != null && rc.canSenseLocation(prevRuin) && getLast(prevRuin.x, prevRuin.y) < rc.getRoundNum() && ((rc.getType() == UnitType.MOPPER && (seeTaintedRuin(prevRuin)) || (rc.getType() == UnitType.SOLDIER && seeIncompleteRuin(prevRuin))))){
             return prevRuin;
         } 
         return best;
@@ -129,7 +145,7 @@ public class TowerBuild {
             MapInfo mi = rc.senseMapInfo(tmp);
             switch (mi.getPaint()) {
                 case ENEMY_SECONDARY, ENEMY_PRIMARY: {
-                    last[ruin.x][ruin.y] = 5 + rc.getRoundNum();
+                    setLast(ruin.x, ruin.y, 5 + rc.getRoundNum());
                     return false;
                 }
                 default: {
@@ -350,7 +366,7 @@ public class TowerBuild {
                         if (r.getLocation() == rc.getLocation()) break;
                         saw++;
                         if (saw > 1) {
-                            last[buildTower.x][buildTower.y] = rc.getRoundNum() + 10;
+                            setLast(buildTower.x, buildTower.y, rc.getRoundNum() + 10);
                             break;
                         }
                     }
