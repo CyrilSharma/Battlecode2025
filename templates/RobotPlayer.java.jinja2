@@ -25,14 +25,11 @@ public class RobotPlayer {
                         TileLoader.load();
                         Globals.run();
                         SquareManager.run();
+                        Attack.initTurn();
                         {{ classname }}.run();
                         SymmetryChecker.run();
                         Comms.run();
-                        rc.setIndicatorString(
-                            "Globals.numSrps := " + Globals.numSrps + ", " +
-                            "Globals.numMoneyTowers := " + Globals.numMoneyTowers + ", " +
-                            "Globals.numPaintTowers := " + Globals.numPaintTowers
-                        );
+                        rc.setIndicatorString(String.format("0x%08X", Attack.reachSoonMask));
                     } catch (GameActionException e) {
                         System.out.println("Exception = ");
                         e.printStackTrace();

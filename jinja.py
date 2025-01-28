@@ -68,6 +68,22 @@ def computeIncomeMap(maxSrps, maxMoneyTowers):
                 mp[supposedIncome].append((moneyTowers, srps))
     return dict(mp)
 
+# Produces a mask with the given rsqr, centered at x, y
+# Slated on a 9x7 and 2x7
+def radialMask(rsqr, cx, cy):
+    mask0 = 0
+    mask1 = 0
+    for x in range(9):
+        for y in range(9):
+            dist = ((x - cx) ** 2) + ((y - cy) ** 2)
+            if (dist > rsqr): continue
+            if y >= 7:
+                mask1 |= (1 << (9 * (y - 7) + x))
+            else:
+                mask0 |= (1 << (9 * y + x))
+    return (mask0, mask1)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Generate a .java file from a .java.jinja2 template.")
     parser.add_argument("--input", required=True, help="Path to the input .java.jinja2 template file.")
@@ -88,6 +104,7 @@ def main():
     env.globals['intDiv'] = intDiv
     env.globals['capitalizeFirstLetter'] = capitalizeFirstLetter
     env.globals['computeIncomeMap'] = computeIncomeMap
+    env.globals['radialMask'] = radialMask
     template = env.get_template(args.input)
     rendered_content = template.render(
         directions=[

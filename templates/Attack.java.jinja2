@@ -5,6 +5,7 @@ import battlecode.common.*;
 {% set dirX = [0, 1, 1,  1,  0, -1, -1, -1, 0] %}
 
 public class Attack {
+    public static MapLocation myloc;
     public static RobotController rc;
 
     {% set copiedAttributes = ['actionRadiusSquared', 'paintCapacity', 'actionCooldown', 'attackStrength', 'aoeAttackStrength']%}
@@ -22,12 +23,97 @@ public class Attack {
         {% endfor -%}
         {% endfor %}
     }
+    
+    public static void initTurn() throws GameActionException {
+        myloc = rc.getLocation();
+        boolean shouldComputeReachSoon = false;
+        for (int i = Globals.enemies.length; --i >= 0; ) {
+            RobotInfo enemy = Globals.enemies[i];
+            switch (enemy.type) {
+                case SOLDIER, MOPPER, SPLASHER: continue;
+                default:
+                    shouldComputeReachSoon = true;
+                    break;
+            }
+        }
+        if (shouldComputeReachSoon) computeReachSoonMask();
+    }
+
+    {% set VISION_WIDTH = 9 %}
+    {% set MIDDLE_OFFSET = intDiv(VISION_WIDTH, 2) %}
+    {% set (MASK0, MASK1) = radialMask(rsqr=20, cx=MIDDLE_OFFSET, cy=MIDDLE_OFFSET) %}
+    {% set (MASK_POS, _) = radialMask(rsqr=0, cx=MIDDLE_OFFSET, cy=MIDDLE_OFFSET) %}
+
+    // You can get away with looking at (and BFSing) single mask...
+    public static long initialMask = 0x{{ '{:08X}'.format(MASK_POS) }}L;;
+    public static long reachSoonMask = initialMask;
+    public static long loverflow = 0x7fbfdfeff7fbfdfeL;
+    public static long roverflow = 0x3fdfeff7fbfdfeffL;
+    public static long mask0 = 0x{{ '{:08X}'.format(MASK0) }}L;
+    public static long mask1 = 0x{{ '{:08X}'.format(MASK1) }}L;
+    public static void computeReachSoonMask() throws GameActionException {
+        reachSoonMask = initialMask;
+        
+        // Unfortunate that we do this twice...
+        long passible0 = (~(
+              ((long)(TileLoader.local_wall6 | TileLoader.local_ruin6) << {{6 * VISION_WIDTH}})
+            | ((long)(TileLoader.local_wall5 | TileLoader.local_ruin5) << {{5 * VISION_WIDTH}})
+            | ((long)(TileLoader.local_wall4 | TileLoader.local_ruin4) << {{4 * VISION_WIDTH}})
+            | ((long)(TileLoader.local_wall3 | TileLoader.local_ruin3) << {{3 * VISION_WIDTH}})
+            | ((long)(TileLoader.local_wall2 | TileLoader.local_ruin2) << {{2 * VISION_WIDTH}})
+            | ((long)(TileLoader.local_wall1 | TileLoader.local_ruin1) << {{VISION_WIDTH}})
+            | ((long)(TileLoader.local_wall0 | TileLoader.local_ruin0))
+        )) & mask0;
+
+        long passible1 = (~(
+              ((long)(TileLoader.local_wall8) << {{VISION_WIDTH}})
+            | ((long)(TileLoader.local_wall7))
+        )) & mask1;
+
+        // Run a BFS
+        long mask0AndPassible = mask0 & passible0;
+        long mask1AndPassible = mask1 & passible1;
+        bfsLoop: {
+            {% for iter in range(2) %}
+            reachSoonMask = (reachSoonMask | ((reachSoonMask << 1) & loverflow) | ((reachSoonMask >>> 1) & roverflow));
+            reachSoonMask = (reachSoonMask | (reachSoonMask << {{VISION_WIDTH}}) | (reachSoonMask >>> {{VISION_WIDTH}})) & mask0AndPassible;
+            {% endfor %}
+        }
+    }
+
+    
+    public static boolean canHitSoon(MapLocation m) {
+        int dy = (m.y - (myloc.y - {{ MIDDLE_OFFSET }}));
+        int dx = (m.x - (myloc.x - {{ MIDDLE_OFFSET }}));
+        switch (dy) {
+            {% for y in range(9) %}
+            case ({{ y }}) -> {
+                switch (dx) {
+                    {% for x in range(9) %}
+                    case ({{ x }}) -> {{ '/* (' + x|string + ', ' + y|string + ') */' }} {
+                        {% set (action0, _) = radialMask(rsqr=9, cx=x, cy=y) %}
+                        return (0x{{ '{:08X}'.format(action0) }}L & reachSoonMask) != 0;
+                    }
+                    {% endfor %}
+                    default -> {
+                        return false;
+                    }
+                }
+            }
+            {% endfor %}
+            default -> {
+                return false;
+            }
+        }
+    }
+
 
     public static boolean shouldSoldierMicro() throws GameActionException {
         for (int i = Globals.enemies.length; --i >= 0; ) {
-            switch (Globals.enemies[i].type) {
+            RobotInfo enemy = Globals.enemies[i];
+            switch (enemy.type) {
                 case SOLDIER, MOPPER, SPLASHER: continue;
-                default: return true;
+                default: if (canHitSoon(enemy.location)) return true;
             }
         }
         return false;
@@ -52,9 +138,10 @@ public class Attack {
     public static boolean shouldSplasherMicro() throws GameActionException {
         // Only activate micro if you can attack a tower.
         for (int i = Globals.enemies.length; --i >= 0; ) {
-            switch (Globals.enemies[i].type) {
+            RobotInfo enemy = Globals.enemies[i];
+            switch (enemy.type) {
                 case SOLDIER, MOPPER, SPLASHER: continue;
-                default: return true;
+                default: if (canHitSoon(enemy.location)) return true;
             }
         }
         return false;
