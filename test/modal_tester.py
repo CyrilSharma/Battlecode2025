@@ -113,7 +113,9 @@ def tester(team1: str, team2: str, map: str):
     team1_game1, team2_game1 = parse_results_text(lines)
     winner = team1 if team1_game1 else team2
     winningPlayer = 'PlayerA' if team1_game1 else 'PlayerB'
-    print(f"{winner} wins on map {map} as {winningPlayer} for reason: {get_reason(lines)}")
+
+    result = f"{winner} wins on map {map} as {winningPlayer} for reason: {get_reason(lines)}"
+    print(result)
 
     for file in os.listdir("/root/matches/"):
         shutil.copyfile("/root/matches/" + file, "/root/matches_final/" + file)
@@ -121,6 +123,8 @@ def tester(team1: str, team2: str, map: str):
     return {
         team1: team1_game1,
         team2: team2_game1
+    }, {
+        map: result
     }
 
 
@@ -131,17 +135,28 @@ def main(team1: str, team2: str, mapfile: str):
         team2: 0
     }
     maps = read_maps(f"./test/{mapfile}")
+    results = { map: [] for map in maps }
     num_games = len(maps)
-    for output in tester.map(
+
+    print("-------------LIVE------------")
+    for result in tester.map(
         [team1] * (num_games) + [team2] * (num_games),
         [team2] * (num_games) + [team1] * (num_games),
         maps + maps,
         return_exceptions=True
     ):
+        output, mapres = result 
+        if isinstance(mapres, dict):
+            for map, str in mapres.items():
+                results[map].append(str)
+
         if isinstance(output, dict):
             for player, wins in output.items():
                 tot[player] += wins
         else:
             print(output)
 
+    print("-------------SUMMARY------------")
+    for map, res in results.items():
+        for item in res: print(item)
     print(f"{team1} wins: {tot[team1]}, {team2} wins: {tot[team2]}")
