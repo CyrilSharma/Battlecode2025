@@ -12,6 +12,8 @@ public class TowerBuild {
     public static boolean[][] defenseTower = null;
     public static MapLocation finishedTower = null;
     public static MapLocation leaveMark = null;
+    public static MapLocation markingCorners = null;
+    public static Direction[] corners = {Direction.NORTHWEST, Direction.SOUTHWEST, Direction.SOUTHEAST, Direction.NORTHEAST};
 
     public static void init(RobotController rc) throws GameActionException {
         TowerBuild.rc = rc;
@@ -69,6 +71,20 @@ public class TowerBuild {
         else Pathing.pathTo(finishedTower);
     }
 
+    public static void markCorners() throws GameActionException {
+        {% for i in range(4) %}
+        {
+            MapLocation tmp = markingCorners.add(corners[{{i}}]);
+            if (rc.canSenseLocation(tmp)) {
+                MapInfo s = rc.senseMapInfo(tmp);
+                if (s.getMark() == PaintType.EMPTY) {
+                    if (rc.canMark(tmp)) rc.mark(tmp, true);
+                }
+            }
+        }
+        {% endfor %}
+    }
+
     public static MapLocation getRuin(MapInfo[] near) throws GameActionException {
         MapLocation best = null;
 
@@ -97,7 +113,10 @@ public class TowerBuild {
                 }
             }
         }
-        if (prevRuin != null && rc.canSenseLocation(prevRuin) && getLast(prevRuin.x, prevRuin.y) < rc.getRoundNum() && ((rc.getType() == UnitType.MOPPER && (seeTaintedRuin(prevRuin)) || (rc.getType() == UnitType.SOLDIER && seeIncompleteRuin(prevRuin))))){
+        if ((prevRuin != null)
+            && rc.canSenseLocation(prevRuin) && last[prevRuin.x][prevRuin.y] < rc.getRoundNum()
+            && ((rc.getType() == UnitType.MOPPER && (seeTaintedRuin(prevRuin))
+             || (rc.getType() == UnitType.SOLDIER && seeIncompleteRuin(prevRuin))))) {
             return prevRuin;
         } 
         return best;
@@ -131,12 +150,29 @@ public class TowerBuild {
         return best;
     }
 
+    public static boolean isFarm(MapLocation ruin) throws GameActionException {
+        MapLocation tmp;
+        MapInfo s;
+        {% for i in range(4) %}
+        tmp = ruin.add(TowerBuild.corners[{{i}}]);
+        if (rc.canSenseLocation(tmp)) {
+            s = rc.senseMapInfo(tmp);
+            if (s.getMark() != PaintType.EMPTY) {
+                return true;
+            }
+        }
+        {% endfor %}
+        return false;
+    }
+
     public static boolean seeIncompleteRuin(MapLocation ruin) throws GameActionException {
         MapLocation tmp;
         UnitType t = Globals.getTowerToBuild(ruin);
         RobotInfo tower = rc.senseRobotAtLocation(ruin);
         boolean needsChanges = (tower == null);
-        if (tower != null) return false;
+        if (tower != null) {
+            return isFarm(ruin);
+        }
         {% for i in range(2, -3, -1) %}
         {% for j in range(2, -3, -1) %}
         {% if i != 0 or j != 0 %}
@@ -239,7 +275,7 @@ public class TowerBuild {
         {% endif %}
         {% endfor %}
         {% endfor %}
-        return false;
+        return isFarm(ruin);
     }
 
     public static void makeTower(MapLocation buildTower) throws GameActionException {
@@ -347,6 +383,19 @@ public class TowerBuild {
             else Pathing.pathTo(goal);
         }
         else {
+            if (rc.getLocation().isAdjacentTo(buildTower) && isFarm(buildTower)){
+                RobotInfo r = rc.senseRobotAtLocation(buildTower);
+                if (r != null) {
+                    int amt = Math.max(rc.getPaint() - rc.getType().paintCapacity, -r.getPaintAmount());
+                    if (rc.canTransferPaint(buildTower, amt) && r.getPaintAmount() < 100) {
+                        rc.transferPaint(buildTower, amt);
+                    }
+                }
+                if( rc.getMoney() < 2800 && rc.getLocation().isAdjacentTo(buildTower)) {
+                    last[buildTower.x][buildTower.y] = 10 + rc.getRoundNum();
+                    prevRuin = null;
+                }
+            }
             if (rc.canCompleteTowerPattern(UnitType.LEVEL_ONE_PAINT_TOWER, buildTower)) {
                 rc.completeTowerPattern(UnitType.LEVEL_ONE_PAINT_TOWER, buildTower);
                 finishedTower = buildTower;
@@ -356,6 +405,10 @@ public class TowerBuild {
                 rc.completeTowerPattern(UnitType.LEVEL_ONE_MONEY_TOWER, buildTower);
                 finishedTower = buildTower;
                 removePattern();
+                if (rc.getNumberTowers() % 3 == 0) {
+                    markingCorners = buildTower;
+                    markCorners();
+                }
             }
             Pathing.pathTo(buildTower);
             if (rc.getLocation().distanceSquaredTo(buildTower) <= 2) {

@@ -73,4 +73,3 @@ sunrise
 walalilongla
 windmill
 yearofthesnake
-MicroTest
