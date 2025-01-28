@@ -29,7 +29,6 @@ public class RobotPlayer {
                         {{ classname }}.run();
                         SymmetryChecker.run();
                         Comms.run();
-                        rc.setIndicatorString(String.format("0x%08X", Attack.reachSoonMask));
                     } catch (GameActionException e) {
                         System.out.println("Exception = ");
                         e.printStackTrace();

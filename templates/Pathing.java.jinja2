@@ -239,7 +239,7 @@ public class Pathing {
 
             Direction dir = {{dir}};
             int dist = dist{{dirX[i]+1}}{{dirY[i]+1}};
-            {% debug('dir', 'canMove', 'dist', 'penalty', 'bugDist', 'shouldUpdate') %}
+            {# {% debug('dir', 'canMove', 'dist', 'penalty', 'bugDist', 'shouldUpdate') %} #}
             if (shouldUpdate) {
                 bestDir = {{dir}};
                 bestDist = dist{{dirX[i]+1}}{{dirY[i]+1}};
