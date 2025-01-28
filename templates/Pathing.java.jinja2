@@ -91,7 +91,7 @@ public class Pathing {
         rc.setIndicatorDot(currentBugPosition, 0, 255, 0);
         doneSimulating = currentBugPosition.equals(target);
         bugLoop: {
-            {% for i in range(PATHING_ITERS) %}
+            {% for i in range(5) %}
             if (doneSimulating || currentBugPosition.equals(target)) break bugLoop;
             if (shouldBug) {
                 bug();
