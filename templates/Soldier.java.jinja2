@@ -21,14 +21,6 @@ public class Soldier {
     public static boolean moved = false;
     public static MapLocation returnLoc = null;
     public static boolean reallyGoing = false;
-    public static boolean seenCenter = false;
-    public static boolean harrasser = false;
-    public static MapLocation center = null;
-    public static boolean reachedH = false;
-    public static boolean reachedR = false;
-    public static boolean reachedV = false;
-    public static boolean wasHarrasser = false;
-
     public static MapLocation chunkGoal = null;
 
     public static int[] dy = {0, 0, 4, -4};
@@ -40,7 +32,6 @@ public class Soldier {
     public static void init(RobotController rc) {
         Soldier.rc = rc;
         resourcePat = rc.getResourcePattern();
-        center = new MapLocation(rc.getMapWidth() / 2, rc.getMapHeight() / 2);
     }
 
     public static boolean shouldUseSecond(MapLocation loc, MapLocation center) throws GameActionException {
@@ -284,12 +275,13 @@ public class Soldier {
     }
 
     public static void initTurn() throws GameActionException {
-        near = rc.senseNearbyMapInfos();
+        near = Cache.mapInfos;
         myloc = rc.getLocation();
         myPaint = rc.getPaint();
         moved = false;
 
         RefuelManager.setHome();
+        Harass.initTurn();
         boolean lowHealth = (myPaint <= (paintCapacity >> 2));
         if (lowHealth != shouldGoHome) {
             shouldGoHome = lowHealth;
@@ -297,24 +289,6 @@ public class Soldier {
             if (buildTower != null && shouldGoHome) returnLoc = buildTower;
             RefuelManager.reset();
         }
-
-        if (!harrasser && !wasHarrasser) {
-            harrasser = isHarasser();
-            if (harrasser) wasHarrasser = true;
-        }
-    }
-
-    public static boolean isHarasser() throws GameActionException {
-        if (Math.max(rc.getMapHeight(), rc.getMapWidth()) > 40) return false;
-        if (rc.getRoundNum() < 50) {
-            if (rc.getRoundNum() > 2) return false;
-            if (RefuelManager.home == null) return false;
-            if (!rc.canSenseLocation(RefuelManager.home)) return false;
-            RobotInfo r = rc.senseRobotAtLocation(RefuelManager.home);
-            if (r == null || r.getType() != UnitType.LEVEL_TWO_PAINT_TOWER) return false;
-            return true;
-        }
-        else return false;
     }
 
     public static boolean getGoodColor(MapLocation m) throws GameActionException {
@@ -362,65 +336,9 @@ public class Soldier {
             }
         }
     }
-
-    public static void goHarrass() throws GameActionException {
-        int sym = SymmetryChecker.HSYM + SymmetryChecker.RSYM + SymmetryChecker.VSYM;
-        if (sym > 1 && !seenCenter) {
-            if (rc.getLocation().distanceSquaredTo(center) <= 9) seenCenter = true;
-            else {
-                Pathing.pathTo(center);
-                return;
-            }
-        }
-
-        int closest = 1000000000;
-        MapLocation best = null;
-        MapLocation target;
-        MapLocation ruin = RefuelManager.firstHome;
-        if (SymmetryChecker.RSYM != 0 && !reachedR) {
-            target = new MapLocation(rc.getMapWidth() - ruin.x - 1, rc.getMapHeight() - ruin.y - 1);
-            if (myloc.distanceSquaredTo(target) <= 9) {
-                reachedR = true;
-            }
-            else {
-                int d = rc.getLocation().distanceSquaredTo(target);
-                if (d < closest) {
-                    best = target;
-                    closest = d;
-                }
-            }
-        }
-        if (SymmetryChecker.HSYM != 0 && !reachedH) {
-            target = new MapLocation(ruin.x, rc.getMapHeight() - ruin.y - 1);
-            if (myloc.distanceSquaredTo(target) <= 9) {
-                reachedH = true;
-            }
-            else {
-                int d = rc.getLocation().distanceSquaredTo(target);
-                if (d < closest) {
-                    best = target;
-                    closest = d;
-                }
-            }
-        }
-        if (SymmetryChecker.VSYM != 0 && !reachedV) {
-            target = new MapLocation(rc.getMapWidth() - ruin.x - 1, ruin.y);
-            if (myloc.distanceSquaredTo(target) <= 9) {
-                reachedV = true;
-            }
-            else {
-                int d = rc.getLocation().distanceSquaredTo(target);
-                if (d < closest) {
-                    best = target;
-                    closest = d;
-                }
-            }
-        }
-        if (best != null) Pathing.pathTo(best);
-        else harrasser = false;
-    }
     
     public static void runTurn() throws GameActionException {
+        rc.setIndicatorString("Harasser := " + Harass.isHarasser);
         if (Attack.shouldSoldierMicro()) {
             rc.setIndicatorString("Attacking");
             Attack.soldierAttackMicro();
@@ -428,7 +346,7 @@ public class Soldier {
         }
 
         // Opportunistically steal paint from adjacent towers.
-        MapLocation[] ruins = rc.senseNearbyRuins(-1);
+        MapLocation[] ruins = Cache.ruins;
         for (MapLocation tower: ruins) {
             RobotInfo r = rc.senseRobotAtLocation(tower);
             if (r == null || r.team != rc.getTeam()) continue;
@@ -473,23 +391,26 @@ public class Soldier {
             RefuelManager.refuel();
             return;
         } 
-
         else if (rc.getNumberTowers() < 25 && markedResource == null) {
             if (buildTower != null) {
                 TowerBuild.makeTower(buildTower);
                 return;
             }
         }
-        else if (harrasser) {
-            goHarrass();
+        
+        if (Harass.shouldHarass()) {
+            rc.setIndicatorString("Harassing");
+            Harass.harass();
             return;
         }  
+
         if (returnLoc != null) {
             if (myloc.distanceSquaredTo(returnLoc) <= 5) {
                 returnLoc = null;
             }
             else {
                 Pathing.pathTo(returnLoc);
+                return;
             }
         }
 
@@ -504,7 +425,7 @@ public class Soldier {
 
         if (moved) return;
 
-        //rc.setIndicatorString("Exploring");
+        rc.setIndicatorString("Exploring");
         Explore.explore(near);
     }
 
@@ -512,7 +433,7 @@ public class Soldier {
 
         // Lay paint where I am first.
         myloc = rc.getLocation();
-        if (canChangeColor(myloc) && rc.canAttack(myloc) && rc.getPaint() >= 50 && okToTile(myloc) && !harrasser){
+        if (canChangeColor(myloc) && rc.canAttack(myloc) && rc.getPaint() >= 50 && okToTile(myloc) && !Harass.isHarasser) {
             rc.attack(myloc, getGoodColor(myloc));
         }
 

@@ -50,7 +50,7 @@ public class RefuelManager {
              RobotInfo robot = rc.senseRobotAtLocation(home);
              homeState = getTowerState(robot);
         }
-        MapLocation[] ruins = rc.senseNearbyRuins(-1);
+        MapLocation[] ruins = Cache.ruins;
         for (MapLocation ruin: ruins) {
             RobotInfo robot = rc.senseRobotAtLocation(ruin);
             if (robot != null && robot.team != rc.getTeam()) continue;

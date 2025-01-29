@@ -4,6 +4,7 @@ public class RobotPlayer {
     @SuppressWarnings("unused")
     public static void run(RobotController rc) throws GameActionException {
         {# This is technically unnecessary but this is the easiest way to get a reference to the controller #}
+        Cache.init(rc);
         Globals.init(rc);
         Mopper.init(rc);
         Pathing.init(rc);
@@ -18,14 +19,17 @@ public class RobotPlayer {
         RefuelManager.init(rc);
         TowerBuild.init(rc);
         SquareManager.init(rc);
+        Harass.init(rc);
         Comms.init(rc);
         {%- macro generate_main_loop(classname) -%}
                 while (true) {
                     try {
+                        Cache.run();
                         TileLoader.load();
                         Globals.run();
                         SquareManager.run();
                         Attack.initTurn();
+                        Harass.initTurn();
                         {{ classname }}.run();
                         SymmetryChecker.run();
                         Comms.run();
