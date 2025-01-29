@@ -2,12 +2,18 @@ package current;
 import battlecode.common.*;
 
 public class Comms {
+    public static MapLocation myloc;
     public static RobotController rc;
     public static void init(RobotController rc) throws GameActionException {
         Comms.rc = rc;
     }
 
+    public static int totalHarassersMade = 0;
     public static void run() throws GameActionException {
+        myloc = rc.getLocation();
+        if (rc.getRoundNum() % 20 == 0) {
+            totalHarassersMade = 0;
+        }
         updateSym();
         broadcastSym();
     }
@@ -19,21 +25,37 @@ public class Comms {
             SymmetryChecker.RSYM &= (msg & 1);
             SymmetryChecker.HSYM &= ((msg & 2) >> 1);
             SymmetryChecker.VSYM &= ((msg & 4) >> 2);
+            if (((msg & 8) >> 3) != 0)
+                Harass.isHarasser = true;
         }
     }
 
     public static void broadcastSym() throws GameActionException {
+        int harassersMade = 0;
         int R = SymmetryChecker.RSYM;
         int H = SymmetryChecker.HSYM;
         int V = SymmetryChecker.VSYM;
         int send = R + 2 * H + 4 * V;
+        int harassMessage = send + 8;
+        boolean shouldMakeHarassers = shouldMakeHarassers();
         if (Globals.isTower(rc.getType())) {
             if (rc.canBroadcastMessage()) {
                 rc.broadcastMessage(send);
             }
             for (int i = Cache.friends.length; --i >= 0;) {
-                if (rc.canSendMessage(Cache.friends[i].location, send)) {
-                    rc.sendMessage(Cache.friends[i].location, send);
+                RobotInfo friend = Cache.friends[i];
+                if ((shouldMakeHarassers)
+                 && (friend.type == UnitType.SOLDIER)
+                 && (myloc.distanceSquaredTo(friend.location) <= 9)
+                 && (harassersMade < 2)) {
+                    if (rc.canSendMessage(friend.location, harassMessage)) {
+                        rc.sendMessage(friend.location, harassMessage);
+                        ++harassersMade;
+                    }
+                } else {
+                    if (rc.canSendMessage(friend.location, send)) {
+                        rc.sendMessage(friend.location, send);
+                    }
                 }
             }
         }
@@ -44,5 +66,22 @@ public class Comms {
                 }
             }
         }
+    }
+
+
+    public static boolean shouldMakeHarassers() throws GameActionException {
+        if (rc.getRoundNum() % 20 < 15) return false;
+        if (totalHarassersMade >= 2) return false;
+        int soldierCount = 0;
+        for (int i = Cache.friends.length; --i >= 0;) {
+            RobotInfo r = Cache.friends[i];
+            if ((r.type == UnitType.SOLDIER)
+             && (rc.canSendMessage(r.location, 0))
+             && (myloc.distanceSquaredTo(r.location) <= 9)) {
+                ++soldierCount;
+            }
+        }
+        if (soldierCount >= 2) return true;
+        return false;
     }
 }
