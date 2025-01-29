@@ -427,6 +427,19 @@ public class Soldier {
             return;
         }
 
+        // Opportunistically steal paint from adjacent towers.
+        MapLocation[] ruins = rc.senseNearbyRuins(-1);
+        for (MapLocation tower: ruins) {
+            RobotInfo r = rc.senseRobotAtLocation(tower);
+            if (r == null || r.team != rc.getTeam()) continue;
+            if (r != null) {
+                int amt = Math.max(rc.getPaint() - rc.getType().paintCapacity, -r.getPaintAmount());
+                if (rc.canTransferPaint(tower, amt)) {
+                    rc.transferPaint(tower, amt);
+                }
+            }
+        }
+
         buildTower = TowerBuild.getRuin(near);
         if (TowerBuild.leaveMark != null) {
             if (rc.canAttack(TowerBuild.leaveMark)) {
