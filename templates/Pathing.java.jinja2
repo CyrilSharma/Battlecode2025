@@ -16,6 +16,8 @@ public class Pathing {
     {% set BOTTOM_MASK_BITS = BOTTOM_MASK_ROWS * VISION_WIDTH %}
 
     public static MapLocation myloc;
+    public static boolean clockwise = false;
+    public static boolean shouldGuessRotation = true;
     public static int bestBugDist = 100000000;
     public static boolean shouldBug = false;
     public static boolean doneSimulating = false;
@@ -269,12 +271,37 @@ public class Pathing {
     public static void bug() throws GameActionException {
         assert(bestBugDist < 10000);
         assert(!currentBugDirection.equals(Direction.CENTER));
+
+        if (shouldGuessRotation) {
+            shouldGuessRotation = false;
+            Direction dirL = currentBugDirection;
+            for (int j = 8; j-- > 0;) {
+                if (canMove(currentBugPosition.add(dirL))) break;
+                dirL = dirL.rotateLeft();
+            }
+
+            Direction dirR = currentBugDirection;
+            for (int j = 8; j-- > 0;) {
+                if (canMove(currentBugPosition.add(dirR))) break;
+                dirR = dirR.rotateRight();
+            }
+
+            // Check which results in a location closer to the target
+            MapLocation locL = currentBugPosition.add(dirL);
+            MapLocation locR = currentBugPosition.add(dirR);
+            int lDist = currentTarget.distanceSquaredTo(locL);
+            int rDist = currentTarget.distanceSquaredTo(locR);
+            if (lDist < rDist) {
+                clockwise = false;
+            } else {
+                clockwise = true;
+            }
+        }
         
         MapLocation currentLoc = null, newLoc = currentBugPosition.add(currentBugDirection);
         if (newLoc.distanceSquaredTo(myloc) <= GameConstants.VISION_RADIUS_SQUARED) {
             if (rc.onTheMap(newLoc)) {
-                MapInfo mi = rc.senseMapInfo(newLoc);
-                if (mi.isPassable() || newLoc.equals(currentTarget)) {
+                if (canMove(newLoc)) {
                     currentLoc = newLoc;
                 }
             }
@@ -288,14 +315,16 @@ public class Pathing {
         if (currentLoc == null) {
             leftLoop: {
                 {% for i in range(8) %}
-                newLoc = currentBugPosition.add(currentBugDirection.rotateLeft());
+                newLoc = currentBugPosition.add(rotate(currentBugDirection));
                 if (newLoc.distanceSquaredTo(myloc) <= GameConstants.VISION_RADIUS_SQUARED) {
                     if (rc.onTheMap(newLoc)) {
-                        MapInfo mi = rc.senseMapInfo(newLoc);
-                        if (mi.isPassable() || newLoc.equals(currentTarget)) {
+                        if (canMove(newLoc)) {
                             currentLoc = newLoc;
                             break leftLoop;
                         }
+                    } else {
+                        clockwise = !clockwise;
+                        return;
                     }
                 } else {
                     // We're starting to consider locations out of vision range,
@@ -305,7 +334,7 @@ public class Pathing {
                 }
                 
                 // If the new direction is not passible, set currentBugDirection to it.
-                currentBugDirection = currentBugDirection.rotateLeft();
+                currentBugDirection = rotate(currentBugDirection);
                 {% endfor %}
             }
         }
@@ -313,7 +342,7 @@ public class Pathing {
         if (currentLoc != null) {
             assert(!currentLoc.equals(currentBugPosition));
             currentBugPosition = currentLoc;
-            currentBugDirection = currentBugDirection.rotateRight();
+            currentBugDirection = rotateOpposite(currentBugDirection);
             int d = currentBugPosition.distanceSquaredTo(currentTarget);
             if (d < bestBugDist) shouldBug = false;
         } else {
@@ -375,12 +404,27 @@ public class Pathing {
         }
     }
 
+    public static boolean canMove(MapLocation loc) throws GameActionException {
+        MapInfo mi = rc.senseMapInfo(loc);
+        return (mi.isPassable() || loc.equals(currentTarget));
+    }
+
+    public static Direction rotate(Direction dir) {
+        return (!clockwise) ? dir.rotateLeft() : dir.rotateRight();
+    }
+
+    public static Direction rotateOpposite(Direction dir) {
+        return (!clockwise) ? dir.rotateRight() : dir.rotateLeft();
+    }
+
     public static void resetPathing(MapLocation target) {
         bestBugDist = 100000000;
         shouldBug = false;
         currentTarget = target;
         currentBugDirection = null;
         currentBugPosition = rc.getLocation();
+        shouldGuessRotation = true;
+        clockwise = false;
         pathLength = 0;
     }
 
