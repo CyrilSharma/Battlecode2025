@@ -226,12 +226,12 @@ public class Attack {
             {% endfor %}
         }
 
-        {# {% for i in range(0, 9) -%}
+        {% for i in range(0, 9) -%}
         {% set dir = shortDirections[i] %}
         {% debug('minDistToEnemy_' ~ dir, 'targetLoc_' ~ dir ~ '.x', 'canMove_' ~ dir,
                  'targetLoc_' ~ dir ~ '.y', 'penalty_' ~ dir, 'healthDmgAttackRange_' ~ dir,
                  'myHealthDmg_' ~ dir, 'towerHealth_' ~ dir, 'canBeHit_' ~ dir, 'canLandHit_' ~ dir) %}
-        {% endfor %} #}
+        {% endfor %}
 
         boolean bestWins = false;
         Direction bestDir = {{ directions[0] }};
@@ -242,12 +242,12 @@ public class Attack {
         {{ chooseBest(type, i) | indent(4) }}
         {% endfor %}
 
-        {# {% set dir = 'best' %}
+        {% set dir = 'best' %}
         {% debug('minDistToEnemy_' ~ dir, 'targetLoc_' ~ dir ~ '.x', 'canMove_' ~ dir,
                  'targetLoc_' ~ dir ~ '.y', 'penalty_' ~ dir, 'healthDmgAttackRange_' ~ dir,
                  'myHealthDmg_' ~ dir, 'towerHealth_' ~ dir, 'canBeHit_' ~ dir, 'canLandHit_' ~ dir) %}
         System.out.println("Chose: " + bestDir);
-        System.out.println("\n"); #}
+        System.out.println("\n");
 
         if (rc.canMove(bestDir)) {
             Pathing.move(bestDir);
@@ -303,16 +303,10 @@ public class Attack {
             }
         }
 
-        // If I'm not in action radius, and I can't land a hit at either square,
-        // Prefer the one which prepares me to hit a low-health tower.
-        // If those are the same, chose the square that gets me closer to the enemy.
-        // Otherwise, there's no difference between the squares and we should go for penalty.
+        // If I can't land a hit at either square, prefer the one which is closer.
+        // This is necessary if we're far away, but if we can already land a hit,
+        // Then there's really no difference between these two squares, so we should go for penalty instead.
         else if (!canLandHit_C && !canLandHit_{{best}} && !canLandHit_{{dir}}) {
-            if (towerHealth_{{best}} != towerHealth_{{dir}}) {
-                bestWins = towerHealth_{{best}} < towerHealth_{{dir}};
-                break {{label}};
-            }
-
             if (minDistToEnemy_{{best}} != minDistToEnemy_{{dir}}) {
                 bestWins = minDistToEnemy_{{best}} < minDistToEnemy_{{dir}};
                 break {{label}};
@@ -375,7 +369,7 @@ public class Attack {
                     {% else %}
                     myHealthDmg_{{dir}} = {{type}}AttackStrength;
                     {% endif %}
-                    
+                    towerHealth_{{dir}} = Math.min(towerHealth_{{dir}}, robot.health);
                     canLandHit_{{dir}} = true;
                 }
                 if (d <= UnitType.{{tower}}.actionRadiusSquared) {
@@ -383,10 +377,8 @@ public class Attack {
                     healthDmgAttackRange_{{dir}} += UnitType.{{tower}}.attackStrength;
                     canBeHit_{{dir}} = true;
                 }
-                if (d <= minDistToEnemy_{{dir}}) {
-                    towerHealth_{{dir}} = robot.health;
-                    minDistToEnemy_{{dir}} = d;
-                }
+
+                if (d < minDistToEnemy_{{dir}}) minDistToEnemy_{{dir}} = d;
                 break {{label}};
             }
             {% endfor %}
