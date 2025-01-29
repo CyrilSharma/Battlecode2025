@@ -305,13 +305,14 @@ public class Soldier {
     }
 
     public static boolean isHarasser() throws GameActionException {
-        if (Math.max(rc.getMapHeight(), rc.getMapWidth()) > 40) return false;
+        // if (Math.max(rc.getMapHeight(), rc.getMapWidth()) > 40) return false;
         if (rc.getRoundNum() < 50) {
-            if (rc.getRoundNum() > 2) return false;
+            if (rc.getRoundNum() > 5) return false;
             if (RefuelManager.home == null) return false;
             if (!rc.canSenseLocation(RefuelManager.home)) return false;
             RobotInfo r = rc.senseRobotAtLocation(RefuelManager.home);
-            if (r == null || r.getType() != UnitType.LEVEL_TWO_PAINT_TOWER) return false;
+            if (r == null) return false;
+            if (r.getType() == UnitType.LEVEL_ONE_MONEY_TOWER) return false;
             return true;
         }
         else return false;
@@ -421,6 +422,7 @@ public class Soldier {
     }
     
     public static void runTurn() throws GameActionException {
+        rc.setIndicatorString("Harasser := " + harrasser);
         if (Attack.shouldSoldierMicro()) {
             rc.setIndicatorString("Attacking");
             Attack.soldierAttackMicro();
@@ -473,23 +475,26 @@ public class Soldier {
             RefuelManager.refuel();
             return;
         } 
-
         else if (rc.getNumberTowers() < 25 && markedResource == null) {
             if (buildTower != null) {
                 TowerBuild.makeTower(buildTower);
                 return;
             }
         }
-        else if (harrasser) {
+        
+        if (harrasser) {
+            rc.setIndicatorString("Harassing");
             goHarrass();
             return;
         }  
+
         if (returnLoc != null) {
             if (myloc.distanceSquaredTo(returnLoc) <= 5) {
                 returnLoc = null;
             }
             else {
                 Pathing.pathTo(returnLoc);
+                return;
             }
         }
 
@@ -504,7 +509,7 @@ public class Soldier {
 
         if (moved) return;
 
-        //rc.setIndicatorString("Exploring");
+        rc.setIndicatorString("Exploring");
         Explore.explore(near);
     }
 
