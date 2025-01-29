@@ -186,6 +186,7 @@ public class Soldier {
             if (near[i].getMark() == PaintType.ALLY_PRIMARY) {
                 if (!isOk(near[i].getMapLocation(), myloc)) return;
             }
+            if (near[i].getMark() == PaintType.ALLY_SECONDARY) return;
         }
 
         if (rc.canMark(myloc)) {
@@ -231,6 +232,15 @@ public class Soldier {
         MapLocation goal = null;
         int bestDist = 1000000000;
         boolean secondCol = false;
+        for (int i = near.length; --i >= 0;) {
+            if (near[i].getMark() == PaintType.ALLY_SECONDARY) {
+                if (rc.canRemoveMark(rc.getLocation())) {
+                    rc.removeMark(rc.getLocation());
+                    markedResource = null;
+                    return;
+                }
+            }
+        }
         for (int i = 3; --i >= -2; ){
             for (int j = 3; --j >= -2; ){
                 MapLocation tmp = new MapLocation(markedResource.x + i, markedResource.y + j);
@@ -337,11 +347,31 @@ public class Soldier {
         MapLocation tmp;
         {% for i in range(2, -3, -1) %}
         {% for j in range(2, -3, -1) %}
-        {% if i != 0 or j != 0 %}
         tmp = new MapLocation(loc.x + {{i}}, loc.y + {{j}});
         if (rc.canSenseLocation(tmp)) {
             MapInfo mi = rc.senseMapInfo(tmp);
             boolean b = shouldUseSecond(tmp, loc);
+            if (mi.getPaint() == PaintType.EMPTY || (mi.getPaint().isAlly() && b != (mi.getPaint() == PaintType.ALLY_SECONDARY))) {
+                if (rc.canAttack(tmp)) {
+                    rc.attack(tmp, b);
+                    return true;
+                }
+            }
+        }
+        {% endfor %}
+        {% endfor %}
+        return false;
+    }
+
+    public static boolean nearbyFarm(MapLocation loc) throws GameActionException {
+        MapLocation tmp;
+        {% for i in range(2, -3, -1) %}
+        {% for j in range(2, -3, -1) %}
+        {% if i != 0 or j != 0 %}
+        tmp = new MapLocation(loc.x + {{i}}, loc.y + {{j}});
+        if (rc.canSenseLocation(tmp)) {
+            MapInfo mi = rc.senseMapInfo(tmp);
+            boolean b = TowerBuild.moneyTower[{{i + 2}}][{{j + 2}}];
             if (mi.getPaint() == PaintType.EMPTY || (mi.getPaint().isAlly() && b != (mi.getPaint() == PaintType.ALLY_SECONDARY))) {
                 if (rc.canAttack(tmp)) {
                     rc.attack(tmp, b);
@@ -359,6 +389,19 @@ public class Soldier {
         for (int i = near.length; --i >= 0;) {
             if (near[i].getMark() == PaintType.ALLY_PRIMARY) {
                 if (checkNearby(near[i].getMapLocation())) return;
+            }
+        }
+    }
+
+    public static void helpFarms(MapInfo[] near) throws GameActionException {
+        for (int i = near.length; --i >= 0;) {
+            if (near[i].hasRuin()) {
+                RobotInfo r = rc.senseRobotAtLocation(near[i].getMapLocation());
+                if (r != null) {
+                    if (TowerBuild.isFarm(near[i].getMapLocation()) && nearbyFarm(near[i].getMapLocation())) {
+                        return;
+                    }
+                }
             }
         }
     }
@@ -463,7 +506,9 @@ public class Soldier {
             else reallyGoing = true;
         }
 
-        if (TowerBuild.finishedTower != null){
+        if (TowerBuild.markingCorners != null) TowerBuild.markCorners();
+        if (TowerBuild.finishedTower != null) {
+            rc.setIndicatorString("Removing Pattern");
             TowerBuild.removePattern();
             return;
         }
@@ -476,11 +521,13 @@ public class Soldier {
 
         else if (rc.getNumberTowers() < 25 && markedResource == null) {
             if (buildTower != null) {
+                rc.setIndicatorString("Building Tower");
                 TowerBuild.makeTower(buildTower);
                 return;
             }
         }
         else if (harrasser) {
+            rc.setIndicatorString("Harassing");
             goHarrass();
             return;
         }  
@@ -489,7 +536,9 @@ public class Soldier {
                 returnLoc = null;
             }
             else {
+                rc.setIndicatorString("Returning");
                 Pathing.pathTo(returnLoc);
+                return;
             }
         }
 
@@ -500,11 +549,13 @@ public class Soldier {
             return;
         }
 
+        helpFarms(near);
+
         helpPattern(near);
 
         if (moved) return;
 
-        //rc.setIndicatorString("Exploring");
+        rc.setIndicatorString("Exploring");
         Explore.explore(near);
     }
 
@@ -514,19 +565,6 @@ public class Soldier {
         myloc = rc.getLocation();
         if (canChangeColor(myloc) && rc.canAttack(myloc) && rc.getPaint() >= 50 && okToTile(myloc) && !harrasser){
             rc.attack(myloc, getGoodColor(myloc));
-        }
-
-        if (buildTower != null) {
-            if (rc.canCompleteTowerPattern(UnitType.LEVEL_ONE_PAINT_TOWER, buildTower)) {
-                rc.completeTowerPattern(UnitType.LEVEL_ONE_PAINT_TOWER, buildTower);
-                TowerBuild.finishedTower = buildTower;
-                TowerBuild.removePattern();
-            }
-            if (rc.canCompleteTowerPattern(UnitType.LEVEL_ONE_MONEY_TOWER, buildTower)) {
-                rc.completeTowerPattern(UnitType.LEVEL_ONE_MONEY_TOWER, buildTower);
-                TowerBuild.finishedTower = buildTower;
-                TowerBuild.removePattern();
-            }
         }
         checkMoneyPatterns();
     }

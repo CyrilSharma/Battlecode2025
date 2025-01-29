@@ -31,14 +31,25 @@ public class Globals {
     }
 
     public static UnitType getTowerToBuild(MapLocation loc) throws GameActionException {
+        MapLocation tmp;
+        MapInfo s;
+        {% for i in range(4) %}
+        tmp = loc.add(TowerBuild.corners[{{i}}]);
+        if (rc.canSenseLocation(tmp)) {
+            s = rc.senseMapInfo(tmp);
+            if (s.getMark() != PaintType.EMPTY) {
+                return UnitType.LEVEL_ONE_MONEY_TOWER;
+            }
+        }
+        {% endfor %}
         MapLocation paintMark = loc.add(Direction.WEST);
         MapLocation moneyMark = loc.add(Direction.SOUTH);
         if (rc.canSenseLocation(paintMark)){
-            MapInfo s = rc.senseMapInfo(paintMark);
+            s = rc.senseMapInfo(paintMark);
             if (s.getMark() == PaintType.ALLY_SECONDARY) return UnitType.LEVEL_ONE_PAINT_TOWER;
         }
         if( rc.canSenseLocation(moneyMark)) {
-            MapInfo s = rc.senseMapInfo(moneyMark);
+            s = rc.senseMapInfo(moneyMark);
             if (s.getMark() == PaintType.ALLY_SECONDARY) return UnitType.LEVEL_ONE_MONEY_TOWER;
         }
         if (numPaintTowers == 0) return UnitType.LEVEL_ONE_PAINT_TOWER;

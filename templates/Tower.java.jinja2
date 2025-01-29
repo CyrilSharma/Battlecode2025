@@ -22,6 +22,17 @@ public class Tower {
         runTurn();
     }
 
+    public static boolean isMoneyTower(UnitType r) throws GameActionException {
+        switch (r) {
+            case LEVEL_ONE_MONEY_TOWER, LEVEL_TWO_MONEY_TOWER, LEVEL_THREE_MONEY_TOWER : {
+                return true;
+            }
+            default: {
+                return false;
+            }
+        }
+    }
+
     public static MapLocation threatLoc = null;
     public static void initTurn() throws GameActionException {
         myloc = rc.getLocation();
@@ -39,6 +50,46 @@ public class Tower {
         if ((threatLoc != null)
          && (rc.getRoundNum() - lastDefenseRound >= defenseWaitRounds)) {
             shouldDefend = true;
+        }
+        if (rc.getPaint() == 0 && isMoneyTower(rc.getType()) && rc.getMoney() >= 3000) {
+            boolean seeSoldier = false;
+            for (RobotInfo r : Globals.friends) {
+                switch (r.type) {
+                    case SOLDIER : {
+                        if (r.paintAmount >= 50 && r.location.distanceSquaredTo(myloc) <= 8) {
+                            seeSoldier = true;
+                            break;
+                        }
+                    }
+                    case MOPPER : {
+                        if (r.paintAmount >= 50 && r.location.distanceSquaredTo(myloc) <= 8) {
+                            seeSoldier = true;
+                            break;
+                        }
+                    }
+                    default: continue;
+                }
+            }
+            boolean patternOk = true;
+            boolean pattern[][] = rc.getTowerPattern(UnitType.LEVEL_ONE_MONEY_TOWER);
+            MapLocation tmp;
+            MapInfo mi;
+            {% for i in range(2, -3, -1) %}
+            {% for j in range(2, -3, -1) %}
+            {% if i != 0 or j != 0 %}
+            tmp = new MapLocation(rc.getLocation().x + {{i}}, rc.getLocation().y + {{j}});
+            if (rc.canSenseLocation(tmp)) {
+                mi = rc.senseMapInfo(tmp);
+                if (!mi.getPaint().isAlly()) patternOk = false;
+                else if ((mi.getPaint() == PaintType.ALLY_SECONDARY) != pattern[{{i + 2}}][{{j + 2}}]) patternOk = false;
+            }
+            else patternOk = false;
+            {% endif %}
+            {% endfor %}
+            {% endfor %}
+            if (TowerBuild.isFarm(rc.getLocation()) && patternOk && seeSoldier) {
+                rc.disintegrate();
+            }
         }
     }
 
@@ -80,16 +131,15 @@ public class Tower {
         UnitType t;
         if (shouldDefend) {
             t = UnitType.MOPPER;
-            rc.setIndicatorString("Defense! Making a mopper");
+            //rc.setIndicatorString("Defense! Making a mopper");
         } else if (unitToBuild == null) {
             unitToBuild = getUnitType();
             t = unitToBuild;
-            rc.setIndicatorString("Saving for " + t);
+            //rc.setIndicatorString("Saving for " + t);
         } else {
             t = unitToBuild;
-            rc.setIndicatorString("Saving for " + t);
+            //rc.setIndicatorString("Saving for " + t);
         }
-
 
         if ((rc.getType() == UnitType.LEVEL_ONE_PAINT_TOWER)
             && (rc.getMoney() >= (UnitType.LEVEL_TWO_PAINT_TOWER.moneyCost + 1000))
@@ -102,7 +152,11 @@ public class Tower {
         }
 
         if (t == null) return;
-        if (rc.getPaint() < t.paintCost) return;
+        if (rc.getPaint() < t.paintCost){
+            if (isMoneyTower(rc.getType()) && rc.getRoundNum() > 20) unitToBuild = null;
+            return;
+        }
+
         if (!shouldDefend) {
             int lim = 10;
             if (rc.getMapHeight() * rc.getMapWidth() <= 600) lim = 50;
