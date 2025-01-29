@@ -17,11 +17,7 @@ public class Globals {
         born = rc.getRoundNum();
     }
 
-    public static RobotInfo[] friends;
-    public static RobotInfo[] enemies;
     public static void run() throws GameActionException {
-        friends = rc.senseNearbyRobots(-1, rc.getTeam());
-        enemies = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
         roundNum = rc.getRoundNum();
         updateTowerTracker();
     }

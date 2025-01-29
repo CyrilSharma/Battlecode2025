@@ -126,8 +126,8 @@ public class MopperAttack {
         }
 
         boolean actionReady = rc.isActionReady() || shouldChase;
-        for (int i = Globals.friends.length; --i >= 0; ) {
-            RobotInfo robot = Globals.friends[i];
+        for (int i = Cache.friends.length; --i >= 0; ) {
+            RobotInfo robot = Cache.friends[i];
             {% for i in range(9) -%}
             {{ addAlly(i) | indent(8) -}}
             {% endfor %}

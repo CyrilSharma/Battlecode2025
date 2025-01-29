@@ -200,7 +200,7 @@ public class Attack {
         {%- endfor -%}
 
         boolean friendNearby = false;
-        for (RobotInfo r: Globals.friends) {
+        for (RobotInfo r: Cache.friends) {
             if (r.type == UnitType.SOLDIER) {
                 friendNearby = true;
                 break;
@@ -212,15 +212,15 @@ public class Attack {
         boolean actionReady = (rc.isActionReady() && (rc.getPaint() >= 5) && !shouldWaitForFriend);
         int cooldownTurns = rc.getActionCooldownTurns();
         {# {% debug('actionReady', 'cooldownTurns') %} #}
-        for (int i = Globals.friends.length; --i >= 0; ) {
-            RobotInfo robot = Globals.friends[i];
+        for (int i = Cache.friends.length; --i >= 0; ) {
+            RobotInfo robot = Cache.friends[i];
             {% for i in range(9) -%}
             {{ addAlly(type, i) | indent(8) -}}
             {% endfor %}
         }
 
-        for (int i = Globals.enemies.length; --i >= 0; ) {
-            RobotInfo robot = Globals.enemies[i];
+        for (int i = Cache.enemies.length; --i >= 0; ) {
+            RobotInfo robot = Cache.enemies[i];
             {% for i in range(9) -%}
             {{ addEnemy(type, i) | indent(8) -}}
             {% endfor %}

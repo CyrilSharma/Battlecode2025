@@ -31,16 +31,16 @@ public class Comms {
             if (rc.canBroadcastMessage()) {
                 rc.broadcastMessage(send);
             }
-            for (int i = Globals.friends.length; --i >= 0;) {
-                if (rc.canSendMessage(Globals.friends[i].location, send)) {
-                    rc.sendMessage(Globals.friends[i].location, send);
+            for (int i = Cache.friends.length; --i >= 0;) {
+                if (rc.canSendMessage(Cache.friends[i].location, send)) {
+                    rc.sendMessage(Cache.friends[i].location, send);
                 }
             }
         }
         else {
-            for (int i = Globals.friends.length; --i >= 0;) if (Globals.isTower(Globals.friends[i].getType())) {
-                if (rc.canSendMessage(Globals.friends[i].location, send)) {
-                    rc.sendMessage(Globals.friends[i].location, send);
+            for (int i = Cache.friends.length; --i >= 0;) if (Globals.isTower(Cache.friends[i].getType())) {
+                if (rc.canSendMessage(Cache.friends[i].location, send)) {
+                    rc.sendMessage(Cache.friends[i].location, send);
                 }
             }
         }
