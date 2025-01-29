@@ -104,6 +104,9 @@ public class Pathing {
             {% endfor %}
         }
         rc.setIndicatorDot(currentBugPosition, 0, 255, 255);
+        {# if (shouldBug && currentBugDirection != null && rc.onTheMap(currentBugPosition.add(currentBugDirection))) {
+            rc.setIndicatorLine(currentBugPosition, currentBugPosition.add(currentBugDirection), 0, 0, 0);
+        } #}
 
         long localMask0 = 0;
         long localMask1 = 0;
@@ -351,8 +354,13 @@ public class Pathing {
     }
 
     public static void greedy() throws GameActionException {
-        int bestPenalty = 1000000;
-        int closestDist = 1000000;
+        MapInfo current_mi = rc.senseMapInfo(currentBugPosition);
+        int bestPenalty = switch (current_mi.getPaint()) {
+            case ENEMY_PRIMARY, ENEMY_SECONDARY -> 2;
+            case ALLY_PRIMARY, ALLY_SECONDARY -> 0;
+            case EMPTY -> 1;
+        };
+        int closestDist = currentBugPosition.distanceSquaredTo(currentTarget);
         MapLocation bestLoc = currentBugPosition;
         // Looping over all directions is kind of not great.
         {% for dir in directions %}
@@ -364,7 +372,7 @@ public class Pathing {
                     if (mi.isPassable() || newLoc.equals(currentTarget)) {
                         boolean shouldUpdate = false;
                         int d = newLoc.distanceSquaredTo(currentTarget);
-                        int penalty = switch(mi.getPaint()) {
+                        int penalty = switch (mi.getPaint()) {
                             case ENEMY_PRIMARY, ENEMY_SECONDARY -> 2;
                             case ALLY_PRIMARY, ALLY_SECONDARY -> 0;
                             case EMPTY -> 1;
