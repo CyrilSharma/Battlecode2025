@@ -28,8 +28,8 @@ public class Attack {
     public static void initTurn() throws GameActionException {
         myloc = rc.getLocation();
         boolean shouldComputeReachSoon = false;
-        for (int i = Globals.enemies.length; --i >= 0; ) {
-            RobotInfo enemy = Globals.enemies[i];
+        for (int i = Cache.enemies.length; --i >= 0; ) {
+            RobotInfo enemy = Cache.enemies[i];
             switch (enemy.type) {
                 case SOLDIER, MOPPER, SPLASHER: continue;
                 default:
@@ -110,8 +110,8 @@ public class Attack {
 
 
     public static boolean shouldSoldierMicro() throws GameActionException {
-        for (int i = Globals.enemies.length; --i >= 0; ) {
-            RobotInfo enemy = Globals.enemies[i];
+        for (int i = Cache.enemies.length; --i >= 0; ) {
+            RobotInfo enemy = Cache.enemies[i];
             switch (enemy.type) {
                 case SOLDIER, MOPPER, SPLASHER: continue;
                 default: if (canHitSoon(enemy.location)) return true;
@@ -121,8 +121,8 @@ public class Attack {
     }
 
     public static void soldierTryAttack() throws GameActionException {
-        for (int i = Globals.enemies.length; --i >= 0;) {
-            RobotInfo enemy = Globals.enemies[i];
+        for (int i = Cache.enemies.length; --i >= 0;) {
+            RobotInfo enemy = Cache.enemies[i];
             switch (enemy.type) {
                 case SOLDIER, SPLASHER, MOPPER: continue;
                 default: {
@@ -138,8 +138,8 @@ public class Attack {
 
     public static boolean shouldSplasherMicro() throws GameActionException {
         // Only activate micro if you can attack a tower.
-        for (int i = Globals.enemies.length; --i >= 0; ) {
-            RobotInfo enemy = Globals.enemies[i];
+        for (int i = Cache.enemies.length; --i >= 0; ) {
+            RobotInfo enemy = Cache.enemies[i];
             switch (enemy.type) {
                 case SOLDIER, MOPPER, SPLASHER: continue;
                 default: if (canHitSoon(enemy.location)) return true;

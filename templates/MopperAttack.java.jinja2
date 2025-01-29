@@ -22,9 +22,9 @@ public class MopperAttack {
     }
 
     public static boolean shouldMopperMicro() throws GameActionException {
-        for (int i = Globals.enemies.length; --i >= 0; ) {
-            if (Globals.enemies[i].paintAmount == 0) continue;
-            switch (Globals.enemies[i].type) {
+        for (int i = Cache.enemies.length; --i >= 0; ) {
+            if (Cache.enemies[i].paintAmount == 0) continue;
+            switch (Cache.enemies[i].type) {
                 case SOLDIER, MOPPER, SPLASHER: return true;
                 default: return false;
             }
@@ -34,7 +34,7 @@ public class MopperAttack {
 
     public static void mopperTryAttack() throws GameActionException {
         if ((rc.getPaint() < (UnitType.MOPPER.paintCapacity >> 1))
-         || (Globals.enemies.length == 1)) {
+         || (Cache.enemies.length == 1)) {
             mopperHealAttack();
         } else {
             mopperMopAttack();
@@ -42,11 +42,11 @@ public class MopperAttack {
     }
 
     public static void mopperHealAttack() throws GameActionException {
-        for (int i = Globals.enemies.length; --i >= 0; ) {
-            switch (Globals.enemies[i].type) {
+        for (int i = Cache.enemies.length; --i >= 0; ) {
+            switch (Cache.enemies[i].type) {
                 case SOLDIER, MOPPER, SPLASHER: {
-                    if (rc.canAttack(Globals.enemies[i].location)) {
-                        rc.attack(Globals.enemies[i].location);
+                    if (rc.canAttack(Cache.enemies[i].location)) {
+                        rc.attack(Cache.enemies[i].location);
                         return;
                     }
                 }
@@ -117,8 +117,8 @@ public class MopperAttack {
         {%- endfor -%}
 
         boolean shouldChase = true;
-        for (int i = Globals.enemies.length; --i >= 0; ) {
-            RobotInfo robot = Globals.enemies[i];
+        for (int i = Cache.enemies.length; --i >= 0; ) {
+            RobotInfo robot = Cache.enemies[i];
             switch (robot.type) {
                 case MOPPER -> shouldChase = false;
                 default -> {}
@@ -133,8 +133,8 @@ public class MopperAttack {
             {% endfor %}
         }
 
-        for (int i = Globals.enemies.length; --i >= 0; ) {
-            RobotInfo robot = Globals.enemies[i];
+        for (int i = Cache.enemies.length; --i >= 0; ) {
+            RobotInfo robot = Cache.enemies[i];
             {% for i in range(9) -%}
             {{ addEnemy(i) | indent(8) -}}
             {% endfor %}

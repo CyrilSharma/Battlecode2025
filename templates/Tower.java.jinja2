@@ -27,7 +27,7 @@ public class Tower {
         myloc = rc.getLocation();
         threatLoc = null;
         shouldDefend = false;
-        for (RobotInfo r: Globals.enemies) {
+        for (RobotInfo r: Cache.enemies) {
             switch (r.type) {
                 case SOLDIER, SPLASHER: {
                     threatLoc = r.location;
@@ -74,7 +74,7 @@ public class Tower {
 
     public static void runTurn() throws GameActionException {
         towerTryAttack();
-        if (Globals.enemies.length > 0)
+        if (Cache.enemies.length > 0)
             enemyLastSeen = rc.getRoundNum();
 
         UnitType t;
@@ -148,8 +148,8 @@ public class Tower {
         int smallestSoldierHealth = 100000000;
         MapLocation bestNonSoldierLoc = null;
         int smallestNonSoldierHealth = 10000000;
-        for (int i = Globals.enemies.length; --i >= 0;) {
-            RobotInfo enemy = Globals.enemies[i];
+        for (int i = Cache.enemies.length; --i >= 0;) {
+            RobotInfo enemy = Cache.enemies[i];
             if (enemy.paintAmount == 0) continue;
             MapLocation loc = enemy.location;
             if (rc.canAttack(loc)) {
