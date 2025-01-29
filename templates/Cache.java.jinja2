@@ -1,0 +1,22 @@
+package current;
+import java.util.Random;
+import battlecode.common.*;
+
+public class Cache {
+    public static RobotController rc;
+    public static RobotInfo[] friends;
+    public static RobotInfo[] enemies;
+    public static MapLocation[] ruins;
+    public static MapInfo[] mapInfos;
+
+    public static void init(RobotController rc) {
+        Cache.rc = rc;
+    }
+
+    public static void run() throws GameActionException {
+        friends = rc.senseNearbyRobots(-1, rc.getTeam());
+        enemies = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
+        ruins = rc.senseNearbyRuins(-1);
+        mapInfos = rc.senseNearbyMapInfos(-1);
+    }
+}

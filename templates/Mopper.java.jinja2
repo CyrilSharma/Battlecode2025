@@ -27,7 +27,7 @@ public class Mopper {
     public static MapLocation mopTarget = null;
     public static void computeMopTarget() throws GameActionException {
         RobotInfo enemyTower = null;
-        MapLocation[] ruins = rc.senseNearbyRuins(-1);
+        MapLocation[] ruins = Cache.ruins;
         for (MapLocation loc: ruins) {
             RobotInfo r = rc.senseRobotAtLocation(loc);
             if (r != null && r.team != rc.getTeam()) {
@@ -115,7 +115,7 @@ public class Mopper {
     public static void initTurn() throws GameActionException {
         myloc = rc.getLocation();
         myPaint = rc.getPaint();
-        near = rc.senseNearbyMapInfos();
+        near = Cache.mapInfos;
         computeMopTarget();
         RefuelManager.setHome();
         boolean lowHealth = (myPaint <= (paintCapacity >> 2));

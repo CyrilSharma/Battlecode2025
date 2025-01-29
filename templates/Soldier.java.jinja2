@@ -275,7 +275,7 @@ public class Soldier {
     }
 
     public static void initTurn() throws GameActionException {
-        near = rc.senseNearbyMapInfos();
+        near = Cache.mapInfos;
         myloc = rc.getLocation();
         myPaint = rc.getPaint();
         moved = false;
@@ -346,7 +346,7 @@ public class Soldier {
         }
 
         // Opportunistically steal paint from adjacent towers.
-        MapLocation[] ruins = rc.senseNearbyRuins(-1);
+        MapLocation[] ruins = Cache.ruins;
         for (MapLocation tower: ruins) {
             RobotInfo r = rc.senseRobotAtLocation(tower);
             if (r == null || r.team != rc.getTeam()) continue;

@@ -64,7 +64,7 @@ public class TileLoader {
         int myY = rc.getLocation().y;
         int myX = rc.getLocation().x;
         long lastSquare = (1L << (rc.getMapWidth() - 1));
-        MapLocation[] ruins = rc.senseNearbyRuins(-1);
+        MapLocation[] ruins = Cache.ruins;
         for (int i = ruins.length; --i >= 0; ) {
             MapLocation ruin = ruins[i];
             switch (ruin.y) {
@@ -91,7 +91,7 @@ public class TileLoader {
         // We measure from the top right corner since that will always 
         // Have non-negative coordinates, meaning this hashCode magic will make sense.
         offset = rc.getLocation().translate({{CORNER_OFFSET}}, {{CORNER_OFFSET}}).hashCode();
-        mapInfos = rc.senseNearbyMapInfos();
+        mapInfos = Cache.mapInfos;
 
         // The seen masks are known statically.
         local_seen8 = 0b001111100;
