@@ -18,6 +18,7 @@ public class RobotPlayer {
         RefuelManager.init(rc);
         TowerBuild.init(rc);
         SquareManager.init(rc);
+        Harass.init(rc);
         Comms.init(rc);
         {%- macro generate_main_loop(classname) -%}
                 while (true) {
@@ -26,6 +27,7 @@ public class RobotPlayer {
                         Globals.run();
                         SquareManager.run();
                         Attack.initTurn();
+                        Harass.initTurn();
                         {{ classname }}.run();
                         SymmetryChecker.run();
                         Comms.run();
