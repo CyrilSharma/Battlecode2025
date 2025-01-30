@@ -51,7 +51,7 @@ public class Tower {
          && (rc.getRoundNum() - lastDefenseRound >= defenseWaitRounds)) {
             shouldDefend = true;
         }
-        if (rc.getPaint() == 0 && isMoneyTower(rc.getType()) && rc.getMoney() >= 3000) {
+        if (isMoneyTower(rc.getType()) && ((rc.getPaint() == 0 && rc.getMoney() >= 3000) || (rc.getPaint() < 100 && rc.getMoney() >= 6000))) {
             boolean seeSoldier = false;
             for (RobotInfo r : Globals.friends) {
                 switch (r.type) {

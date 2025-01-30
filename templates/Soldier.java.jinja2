@@ -4,6 +4,7 @@ package current;
 import battlecode.common.*;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Stack;
 
 public class Soldier {
     public static RobotController rc;
@@ -21,6 +22,7 @@ public class Soldier {
     public static boolean moved = false;
     public static MapLocation returnLoc = null;
     public static boolean reallyGoing = false;
+    public static boolean reallyGoing2 = false;
     public static boolean seenCenter = false;
     public static boolean harrasser = false;
     public static MapLocation center = null;
@@ -28,6 +30,7 @@ public class Soldier {
     public static boolean reachedR = false;
     public static boolean reachedV = false;
     public static boolean wasHarrasser = false;
+    public static Stack<MapLocation> srpStack;
 
     public static MapLocation chunkGoal = null;
 
@@ -41,6 +44,7 @@ public class Soldier {
         Soldier.rc = rc;
         resourcePat = rc.getResourcePattern();
         center = new MapLocation(rc.getMapWidth() / 2, rc.getMapHeight() / 2);
+        srpStack = new Stack<>();
     }
 
     public static boolean shouldUseSecond(MapLocation loc, MapLocation center) throws GameActionException {
@@ -153,8 +157,19 @@ public class Soldier {
         if (!(rc.getNumberTowers() > 2 || rc.getRoundNum() > 100)) return;
 
         if (chunkGoal != null) {
-            if (myloc.equals(chunkGoal)) chunkGoal = null;
-            else Pathing.pathTo(chunkGoal);
+            if (rc.getLocation().equals(chunkGoal)) chunkGoal = null;
+            else{
+                Pathing.pathTo(chunkGoal);
+                moved = true;
+            }
+        }
+        else {
+            if (!srpStack.isEmpty()){
+                MapLocation nxt = srpStack.pop();
+                if (!visited(nxt)) {
+                    chunkGoal = nxt;
+                }
+            }
         }
 
         if (Globals.enemies.length > 0) return;
@@ -162,7 +177,7 @@ public class Soldier {
         //this just checks that nothing is like directly in the way
         for (int i = 3; --i >= -2; ){
             for (int j = 3; --j >= -2; ){
-                MapLocation tmp = new MapLocation(myloc.x + i, myloc.y + j);
+                MapLocation tmp = new MapLocation(rc.getLocation().x + i, rc.getLocation().y + j);
                 if (rc.canSenseLocation(tmp)) {
                     MapInfo mi = rc.senseMapInfo(tmp);
                     if (!mi.isPassable()) {
@@ -183,15 +198,18 @@ public class Soldier {
 
         // ok there is probably better way to do this with bitmasks or something but ill just do this for now...
         for (int i = near.length; --i >= 0; ) {
+            if (!near[i].getPaint().isAlly() && near[i].getPaint() != PaintType.EMPTY) return;
             if (near[i].getMark() == PaintType.ALLY_PRIMARY) {
-                if (!isOk(near[i].getMapLocation(), myloc)) return;
+                if (!isOk(near[i].getMapLocation(), rc.getLocation())) return;
             }
-            if (near[i].getMark() == PaintType.ALLY_SECONDARY) return;
+            if (near[i].getMark() == PaintType.ALLY_SECONDARY) {
+                return;
+            }
         }
 
-        if (rc.canMark(myloc)) {
-            rc.mark(myloc, false);
-            markedResource = myloc;
+        if (rc.canMark(rc.getLocation())) {
+            rc.mark(rc.getLocation(), false);
+            markedResource = rc.getLocation();
         }
     }
 
@@ -211,18 +229,17 @@ public class Soldier {
         return true;
     }
 
-    public static MapLocation findNext(MapLocation m) throws GameActionException {
+    public static void findNext(MapLocation m) throws GameActionException {
         int st = Globals.rng.nextInt(4);
         MapLocation tmp;
         MapInfo mi;
         {% for i in range(4) %}
         tmp = new MapLocation(m.x + dx[(st + {{i}}) % 4], m.y + dy[(st + {{i}}) % 4]);
         mi = rc.senseMapInfo(tmp);
-        if (okSRP(tmp) && mi.getMark() != PaintType.ALLY_PRIMARY) {
-            return tmp;
+        if (okSRP(tmp) && mi.getMark() != PaintType.ALLY_PRIMARY && !visited(tmp)) {
+            srpStack.push(tmp);
         }
         {% endfor %}
-        return null;
     }
 
     public static void makeResourcePatch() throws GameActionException {
@@ -270,18 +287,20 @@ public class Soldier {
             if (rc.canCompleteResourcePattern(markedResource)) {
                 rc.completeResourcePattern(markedResource);
                 markedResource = null;
-                chunkGoal = findNext(myloc);
+                findNext(rc.getLocation());
             }
-            MapInfo mi = rc.senseMapInfo(myloc);
-            if (mi.isResourcePatternCenter()) {
-                markedResource = null;
-                chunkGoal = findNext(myloc);
+            else {
+                MapInfo mi = rc.senseMapInfo(rc.getLocation());
+                if (mi.isResourcePatternCenter()) {
+                    markedResource = null;
+                    findNext(rc.getLocation());
+                }
             }
         }
         else {
             if (rc.canCompleteResourcePattern(markedResource)) {
                 rc.completeResourcePattern(markedResource);
-                chunkGoal = findNext(myloc);
+                findNext(rc.getLocation());
             }
             markedResource = null;
         }
@@ -304,6 +323,7 @@ public class Soldier {
         if (lowHealth != shouldGoHome) {
             shouldGoHome = lowHealth;
             reallyGoing = false;
+            reallyGoing2 = false;
             if (buildTower != null && shouldGoHome) returnLoc = buildTower;
             RefuelManager.reset();
         }
@@ -498,12 +518,12 @@ public class Soldier {
             else reallyGoing = true;
         }
 
-        if (markedResource != null && !reallyGoing && rc.getPaint() <= 50) {
-            if (enoughToSRP() && !reallyGoing){
+        if (markedResource != null && !reallyGoing2 && rc.getPaint() <= 50) {
+            if (enoughToSRP() && !reallyGoing2){
                 makeResourcePatch();
                 return;
             }
-            else reallyGoing = true;
+            else reallyGoing2 = true;
         }
 
         if (TowerBuild.markingCorners != null) TowerBuild.markCorners();
@@ -514,7 +534,7 @@ public class Soldier {
         }
 
         if (shouldGoHome) {
-            rc.setIndicatorString("Refueling");
+            //rc.setIndicatorString("Refueling");
             RefuelManager.refuel();
             return;
         } 
