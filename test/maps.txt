@@ -23,7 +23,6 @@ Gears
 HungerGames
 Jail
 Justice
-Leaf
 Mirage
 Money
 MoneyTower
