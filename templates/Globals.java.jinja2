@@ -53,6 +53,7 @@ public class Globals {
             if (s.getMark() == PaintType.ALLY_SECONDARY) return UnitType.LEVEL_ONE_MONEY_TOWER;
         }
         if (numPaintTowers == 0) return UnitType.LEVEL_ONE_PAINT_TOWER;
+        if (numMoneyTowers >= 15) return UnitType.LEVEL_ONE_PAINT_TOWER;
         else if (rc.getMoney() < 2000) return UnitType.LEVEL_ONE_MONEY_TOWER;
         return UnitType.LEVEL_ONE_PAINT_TOWER;
     }
