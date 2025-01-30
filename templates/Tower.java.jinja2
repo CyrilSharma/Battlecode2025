@@ -4,7 +4,28 @@
 package current;
 import battlecode.common.*;
 
+class SpawnPlan {
+    int index;
+    UnitType[] plan;
+    String name;
+    SpawnPlan(String name, UnitType[] plan) {
+        this.index = 0;
+        this.plan = plan;
+        this.name = name;
+    }
+
+    public UnitType get() {
+        return plan[index];
+    }
+
+    public void build() {
+        this.index = (this.index + 1) % plan.length;
+    }
+};
+
 public class Tower {
+    public static boolean moneyTower = false;
+    public static boolean paintTower = false;
     public static RobotController rc;
     public static MapLocation myloc;
     public static boolean shouldDefend;
@@ -15,6 +36,10 @@ public class Tower {
     public static void init(RobotController rc) {
         Tower.rc = rc;
         enemyLastSeen = rc.getRoundNum();
+        switch (rc.getType()) {
+            case LEVEL_ONE_PAINT_TOWER, LEVEL_TWO_PAINT_TOWER, LEVEL_THREE_PAINT_TOWER -> paintTower = true;
+            case LEVEL_ONE_MONEY_TOWER, LEVEL_TWO_MONEY_TOWER, LEVEL_THREE_MONEY_TOWER -> moneyTower = true;
+        };
     }
 
     public static void run() throws GameActionException {
@@ -22,19 +47,72 @@ public class Tower {
         runTurn();
     }
 
-    public static boolean isMoneyTower(UnitType r) throws GameActionException {
-        switch (r) {
-            case LEVEL_ONE_MONEY_TOWER, LEVEL_TWO_MONEY_TOWER, LEVEL_THREE_MONEY_TOWER : {
-                return true;
-            }
-            default: {
-                return false;
-            }
+    public static SpawnPlan PAINT_INITIAL_SPAWN_PLAN = new SpawnPlan(
+        "PAINT INITIAL",
+        new UnitType[] {
+            UnitType.SOLDIER,
+            UnitType.SOLDIER,
+            UnitType.SOLDIER,
+            UnitType.SOLDIER,
+            UnitType.MOPPER,
+        }
+    );
+    
+    public static SpawnPlan PAINT_LATE_SPAWN_PLAN = new SpawnPlan(
+        "PAINT LATE",
+        new UnitType[] {
+            UnitType.SPLASHER,
+            UnitType.SPLASHER,
+            UnitType.SOLDIER,
+            UnitType.SOLDIER,
+            UnitType.MOPPER,
+        }
+    );
+    
+    public static SpawnPlan MONEY_INITIAL_SPAWN_PLAN = new SpawnPlan(
+        "MONEY INITIAL",
+        new UnitType[] {
+            UnitType.SOLDIER,
+            UnitType.SOLDIER
+        }
+    );
+
+    public static SpawnPlan MONEY_LATE_SPAWN_PLAN_1 = new SpawnPlan(
+        "MONEY LATE 1",
+        new UnitType[] {
+            UnitType.SOLDIER,
+            UnitType.SOLDIER,
+            UnitType.MOPPER,
+        }
+    );
+
+    public static SpawnPlan MONEY_LATE_SPAWN_PLAN_2 = new SpawnPlan(
+        "MONEY LATE 2",
+        new UnitType[] {
+            UnitType.SPLASHER,
+            UnitType.SOLDIER,
+            UnitType.MOPPER,
+        }
+    );
+    
+    public static SpawnPlan getSpawnPlan() throws GameActionException {
+        if ((rc.getRoundNum() < 30) || ((rc.getMoney() < 2000) && (Globals.numMoneyTowers < 3))) {
+            if (paintTower) return PAINT_INITIAL_SPAWN_PLAN;
+            else return MONEY_INITIAL_SPAWN_PLAN;
+        } else {
+            if (paintTower) return PAINT_LATE_SPAWN_PLAN;
+            int flip = Globals.rng.nextInt(2);
+            if (flip == 0) return MONEY_LATE_SPAWN_PLAN_1;
+            else return MONEY_LATE_SPAWN_PLAN_2;
         }
     }
 
+    public static SpawnPlan spawnPlan = null;
     public static MapLocation threatLoc = null;
     public static void initTurn() throws GameActionException {
+        if ((spawnPlan == null) || (rc.getRoundNum() % 200 == 0))
+            spawnPlan = getSpawnPlan();
+
         myloc = rc.getLocation();
         threatLoc = null;
         shouldDefend = false;
@@ -51,7 +129,7 @@ public class Tower {
          && (rc.getRoundNum() - lastDefenseRound >= defenseWaitRounds)) {
             shouldDefend = true;
         }
-        if (isMoneyTower(rc.getType()) && ((rc.getPaint() == 0 && rc.getMoney() >= 3000) || (rc.getPaint() < 100 && rc.getMoney() >= 6000))) {
+        if (moneyTower && ((rc.getPaint() == 0 && rc.getMoney() >= 3000) || (rc.getPaint() < 100 && rc.getMoney() >= 6000))) {
             boolean seeSoldier = false;
             for (RobotInfo r : Globals.friends) {
                 switch (r.type) {
@@ -93,54 +171,7 @@ public class Tower {
         }
     }
 
-    public static int soldiersBuilt = 0;
-    public static int splashersBuilt = 0;
-    public static int moppersBuilt = 0;
-    public static UnitType getUnitType() throws GameActionException {
-        int money = rc.getMoney();
-        int round = rc.getRoundNum();
-        UnitType answer;
-        if (round < 5) {
-            answer = UnitType.SOLDIER;
-        } else if (money < 2000 && Globals.numMoneyTowers < 3) {
-            int total = (soldiersBuilt + moppersBuilt);
-            if (total % 5 < 4) answer = UnitType.SOLDIER;
-            else answer = UnitType.MOPPER;
-        } else {
-            int total = (soldiersBuilt + splashersBuilt + moppersBuilt);
-            if (total % 5 < 2) answer = UnitType.SPLASHER;
-            else if (total % 5 < 4) answer = UnitType.SOLDIER;
-            else answer = UnitType.MOPPER;
-        }
-
-        switch (answer) {
-            case SOLDIER -> ++soldiersBuilt;
-            case SPLASHER -> ++splashersBuilt;
-            case MOPPER -> ++moppersBuilt;
-            default -> {}
-        }
-        return answer;
-    }
-
-
-    public static void runTurn() throws GameActionException {
-        towerTryAttack();
-        if (Globals.enemies.length > 0)
-            enemyLastSeen = rc.getRoundNum();
-
-        UnitType t;
-        if (shouldDefend) {
-            t = UnitType.MOPPER;
-            //rc.setIndicatorString("Defense! Making a mopper");
-        } else if (unitToBuild == null) {
-            unitToBuild = getUnitType();
-            t = unitToBuild;
-            //rc.setIndicatorString("Saving for " + t);
-        } else {
-            t = unitToBuild;
-            //rc.setIndicatorString("Saving for " + t);
-        }
-
+    public static void towerTryUpgrade() throws GameActionException {
         if ((rc.getType() == UnitType.LEVEL_ONE_PAINT_TOWER)
             && (rc.getMoney() >= (UnitType.LEVEL_TWO_PAINT_TOWER.moneyCost + 1000))
             && (rc.getRoundNum() - enemyLastSeen >= 10)) {
@@ -150,10 +181,19 @@ public class Tower {
             && (rc.getRoundNum() - enemyLastSeen >= 10)) {
             rc.upgradeTower(rc.getLocation());
         }
+    }
+    
+    public static void runTurn() throws GameActionException {
+        towerTryAttack();
+        towerTryUpgrade();
+        if (Globals.enemies.length > 0)
+            enemyLastSeen = rc.getRoundNum();
 
-        if (t == null) return;
-        if (rc.getPaint() < t.paintCost){
-            if (isMoneyTower(rc.getType()) && rc.getRoundNum() > 20) unitToBuild = null;
+        rc.setIndicatorString("Plan := " + spawnPlan.name + " " + spawnPlan.get());
+        UnitType t = spawnPlan.get();
+        if (shouldDefend) t = UnitType.MOPPER;
+        if ((rc.getPaint() < t.paintCost) && moneyTower) {
+            if (rc.getRoundNum() > 30) spawnPlan.build();
             return;
         }
 
@@ -189,9 +229,9 @@ public class Tower {
         }
         if (bestLoc != null && rc.canBuildRobot(t, bestLoc)) {
             if (shouldDefend) lastDefenseRound = rc.getRoundNum();
+            else spawnPlan.build();
             rc.setIndicatorString("Chose to build " + t + " at " + bestLoc);
             rc.buildRobot(t, bestLoc);
-            unitToBuild = null;
         }
     }
 
