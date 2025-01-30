@@ -73,7 +73,9 @@ public class Tower {
         "MONEY INITIAL",
         new UnitType[] {
             UnitType.SOLDIER,
-            UnitType.SOLDIER
+            UnitType.SOLDIER,
+            UnitType.SOLDIER,
+            UnitType.MOPPER
         }
     );
 
@@ -131,21 +133,27 @@ public class Tower {
          && (rc.getRoundNum() - lastDefenseRound >= defenseWaitRounds)) {
             shouldDefend = true;
         }
-        if (moneyTower && ((rc.getPaint() == 0 && rc.getMoney() >= 3000) || (rc.getPaint() < 100 && rc.getMoney() >= 6000))) {
+        if (moneyTower) {
             boolean seeSoldier = false;
+            boolean seeNotFull = false;
             for (RobotInfo r : Globals.friends) {
                 switch (r.type) {
                     case SOLDIER : {
+                        if (r.paintAmount < 190) seeNotFull = true;
                         if (r.paintAmount >= 50 && r.location.distanceSquaredTo(myloc) <= 8) {
                             seeSoldier = true;
                             break;
                         }
                     }
                     case MOPPER : {
+                        if (r.paintAmount < 90) seeNotFull = true;
                         if (r.paintAmount >= 50 && r.location.distanceSquaredTo(myloc) <= 8) {
                             seeSoldier = true;
                             break;
                         }
+                    }
+                    case SPLASHER : {
+                        if (r.paintAmount < 290) seeNotFull = true;
                     }
                     default: continue;
                 }
@@ -168,7 +176,9 @@ public class Tower {
             {% endfor %}
             {% endfor %}
             if (TowerBuild.isFarm(rc.getLocation()) && patternOk && seeSoldier) {
-                rc.disintegrate();
+                if ((rc.getPaint() == 0 && rc.getMoney() >= 3000) || (rc.getPaint() < 100 && rc.getMoney() >= 3000 && !seeNotFull)) {
+                    rc.disintegrate();
+                }
             }
         }
     }
