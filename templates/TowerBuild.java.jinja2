@@ -97,6 +97,10 @@ public class TowerBuild {
                 MapLocation m = near[i].getMapLocation();
                 int d = m.distanceSquaredTo(rc.getLocation());
                 RobotInfo r = rc.senseRobotAtLocation(m);
+                if (isFarm(m)) {
+                    markingCorners = m;
+                    markCorners();
+                }
                 if (r == null) {
                     if (d < closest && getLast(m.x, m.y) < rc.getRoundNum() && ((rc.getType() == UnitType.MOPPER && seeTaintedRuin(m)) || (rc.getType() == UnitType.SOLDIER && seeIncompleteRuin(m)))) {
                         closest = d;
