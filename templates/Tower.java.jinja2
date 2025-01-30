@@ -96,14 +96,16 @@ public class Tower {
     );
     
     public static SpawnPlan getSpawnPlan() throws GameActionException {
-        if ((rc.getRoundNum() < 30) || ((rc.getMoney() < 2000) && (Globals.numMoneyTowers < 3))) {
+        if ((rc.getRoundNum() < 30) || ((rc.getMoney() < 2000) && (rc.getNumberTowers() < 4))) {
             if (paintTower) return PAINT_INITIAL_SPAWN_PLAN;
             else return MONEY_INITIAL_SPAWN_PLAN;
         } else {
             if (paintTower) return PAINT_LATE_SPAWN_PLAN;
-            int flip = Globals.rng.nextInt(2);
-            if (flip == 0) return MONEY_LATE_SPAWN_PLAN_1;
-            else return MONEY_LATE_SPAWN_PLAN_2;
+            int flip = rc.getID() % 2;
+            if (flip == 0) {
+                //return MONEY_LATE_SPAWN_PLAN_1;
+            }
+            return MONEY_LATE_SPAWN_PLAN_2;
         }
     }
 
