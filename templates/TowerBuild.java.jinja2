@@ -14,6 +14,7 @@ public class TowerBuild {
     public static MapLocation leaveMark = null;
     public static MapLocation markingCorners = null;
     public static Direction[] corners = {Direction.NORTHWEST, Direction.SOUTHWEST, Direction.SOUTHEAST, Direction.NORTHEAST};
+    public static int lastSeen = -1;
 
     public static void init(RobotController rc) throws GameActionException {
         TowerBuild.rc = rc;
@@ -117,12 +118,20 @@ public class TowerBuild {
                 }
             }
         }
-        if ((prevRuin != null)
-            && rc.canSenseLocation(prevRuin) && last[prevRuin.x][prevRuin.y] < rc.getRoundNum()
-            && ((rc.getType() == UnitType.MOPPER && (seeTaintedRuin(prevRuin))
-             || (rc.getType() == UnitType.SOLDIER && seeIncompleteRuin(prevRuin))))) {
-            return prevRuin;
-        } 
+
+        if ((prevRuin != null) && last[prevRuin.x][prevRuin.y] < rc.getRoundNum()) {
+            if (rc.canSenseLocation(prevRuin)) {
+                if ((rc.getType() == UnitType.MOPPER && seeTaintedRuin(prevRuin)) || (rc.getType() == UnitType.SOLDIER && seeIncompleteRuin(prevRuin))) {
+                    lastSeen = rc.getRoundNum();
+                    return prevRuin;
+                }
+            }
+            else if (rc.getRoundNum() - 15 <= lastSeen) {
+                return prevRuin;
+            }
+        }
+
+        lastSeen = -1;
         return best;
     }
 
@@ -384,7 +393,12 @@ public class TowerBuild {
                 rc.attack(goal, secondCol);
             }
             if (rc.getType() == UnitType.MOPPER) Mopper.handleMopTarget(goal);
-            else Pathing.pathTo(goal);
+            else {
+                if (rc.getLocation().distanceSquaredTo(buildTower) <= 8) {
+                    Pathing.pathTo(goal);
+                }
+                else Pathing.pathTo(buildTower);
+            }
         }
         else {
             if (rc.getLocation().isAdjacentTo(buildTower) && isFarm(buildTower)){
