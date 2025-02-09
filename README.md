@@ -8,6 +8,7 @@ Our build system uses make to invoke a script (jinja.py) which compiles the temp
 To make python versioning easy, we use https://github.com/astral-sh/uv. 
 
 Commands
+
 ```make```
 The most common command you will run, it instatiates all template code.
 All make commands below will also do this.
