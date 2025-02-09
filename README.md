@@ -1,4 +1,4 @@
-# Repository for Team Om Nom
+# Repository for Team Om Nom (3rd Place Finalists, Winner of US Quals)
 
 # Build System
 All the real code lives in the templates subdirectory of current.
