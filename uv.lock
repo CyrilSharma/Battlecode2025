@@ -123,12 +123,14 @@ source = { virtual = "." }
 dependencies = [
     { name = "jinja2" },
     { name = "modal" },
+    { name = "rich" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "jinja2", specifier = ">=3.1.5" },
     { name = "modal", specifier = ">=0.72.18" },
+    { name = "rich", specifier = ">=13.9.4" },
 ]
 
 [[package]]
